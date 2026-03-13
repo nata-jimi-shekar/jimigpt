@@ -4,12 +4,12 @@
 
 ```
 Phase 1A: Foundation
-  F01 → Personality Engine (9 tasks, ~3.5 hrs)
+  F01 → Personality Engine (10 tasks, ~4 hrs)        ← +1 task for tone/intent
 
 Phase 1B: Pipeline
-  F02 → Message Pipeline (11 tasks, ~4.5 hrs)     depends on F01
-  F03 → Delivery Layer (6 tasks, ~2 hrs)           depends on F02
-  F04 → Trust & Safety (4 tasks, ~1.5 hrs)         depends on F01, F02
+  F02 → Message Pipeline (14 tasks, ~5.5 hrs)        ← Expanded with message modeling
+  F03 → Delivery Layer (6 tasks, ~2 hrs)              depends on F02
+  F04 → Trust & Safety (4 tasks, ~1.5 hrs)            depends on F01, F02
 
 Phase 1C: Product
   F05 → Database, Auth & Payments (6 tasks, ~2.5 hrs)  depends on F01-F04
@@ -21,17 +21,23 @@ Phase 1D: Polish
   F09 → Batch Runner & Monitoring (5 tasks, ~2 hrs) depends on F01-F06
 ```
 
+**Key Architecture Documents:**
+- docs/category-architecture.md — Shared engine specs (v1.1, updated)
+- docs/jimigpt-architecture.md — JimiGPT-specific specs
+- docs/message-modeling.md — Message composition: intent, tone, signals, state
+- docs/user-testing-strategy.md — User-backward validation approach
+
 ## Total Estimates
 
 | Phase | Features | Tasks | Estimated Hours |
 |-------|----------|-------|-----------------|
-| 1A    | F01      | 9     | 3.5             |
-| 1B    | F02-F04  | 21    | 8.0             |
+| 1A    | F01      | 10    | 4.0             |
+| 1B    | F02-F04  | 24    | 9.0             |
 | 1C    | F05-F07  | 20    | 8.0             |
 | 1D    | F08-F09  | 10    | 4.0             |
-| **Total** | **9 features** | **60 tasks** | **~23.5 hours** |
+| **Total** | **9 features** | **64 tasks** | **~25 hours** |
 
-At 3-4 productive hours per day, that's approximately **6-8 weeks** to MVP.
+At 3-4 productive hours per day, that's approximately **7-9 weeks** to MVP.
 
 ## Feature Files
 - [F01: Personality Engine](F01-personality-engine.md)

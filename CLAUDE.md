@@ -77,5 +77,7 @@ code is entity-agnostic; pet-specific logic lives in configuration only.
 ## Reference Docs
 - Category Architecture: docs/category-architecture.md
 - JimiGPT Architecture: docs/jimigpt-architecture.md
+- Message Modeling: docs/message-modeling.md
 - Features: docs/features/
+- User Testing Strategy: docs/user-testing-strategy.md
 - Current sprint: docs/tasks/current-sprint.md

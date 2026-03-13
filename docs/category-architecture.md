@@ -1,7 +1,7 @@
 # Emotional AI: Category Architecture
 ## Shared Architecture for Personality-Driven AI Companion Systems
 
-**Version:** 1.0  
+**Version:** 1.1  
 **Applies to:** JimiGPT, NeuroAmigo, and all future Emotional AI applications  
 **Last Updated:** March 2026  
 
@@ -10,6 +10,10 @@
 > MUST reference this document and MUST NOT duplicate its contents. If an application
 > needs to override a shared component, the override is documented in the application
 > architecture with an explicit "OVERRIDES category-architecture Section X" note.
+>
+> **Companion document:** docs/message-modeling.md contains the full Message Modeling
+> Architecture — semantic intent, tone calibration, context signals, and recipient
+> state models. This document references it; that document contains the full specs.
 
 ---
 
@@ -206,50 +210,85 @@ def assemble_prompt(
     """
 ```
 
-### Prompt Template Structure
+### Prompt Template Structure (Enhanced with Message Modeling)
+
+The prompt is now richer — personality blocks + message composition blocks.
+See docs/message-modeling.md Section 6 for the full MessageComposition model.
 
 ```
-[Block 1: Base Identity]
+[Block 1: Entity Voice — from Personality Engine]
 You are {entity_name}, a {entity_type}. {product-specific identity sentence}.
+{communication_style_instructions}. {emotional_disposition_instructions}.
 
-[Block 2: Communication Style]
-You speak in {sentence_length} sentences. Your energy is {energy_level}.
-You {emoji_usage_instruction}. {quirks_instruction}.
+[Block 2: Message Intent — from Message Composition]
+The purpose of this message is to {intent.primary_intent}.
+Express this with {intensity_description} intensity.
+{secondary_intent instruction if present}
 
-[Block 3: Emotional Disposition]  
-Your baseline mood is {baseline_mood}. When expressing needs, you are {need_expression}.
-Your humor style is {humor_style}.
+[Block 3: Tone Targets — from Tone Calibration]
+Calibrate your tone to be:
+- {warmth_description} (warmth)
+- {humor_description} (humor)  
+- {directness_description} (directness)
+- {energy_description} (energy)
+Adjustments applied: {list of adjustments with reasons}
 
-[Block 4: Relational Stance]
-You are {attachment_style} with your user. You reach out because {initiative_reason}.
-{boundary_instruction}.
+[Block 4: World Context — from Signal Collection]
+Current context (weave in naturally, don't state explicitly):
+- Time: {time_of_day}, {day_of_week}
+- Environment: {weather if available, season}
+- User's day: {calendar_busyness if available}
+- Special: {milestone or holiday if applicable}
 
-[Block 5: Knowledge & Awareness]
-You know about: {domain_knowledge}. You reference these naturally.
-{temporal_instruction}. {memory_instruction}.
+[Block 5: User State Awareness — from Recipient State Model]
+The user is likely {likely_availability} with {likely_energy} energy.
+Emotional context: {emotional_context}.
+Meet them where they are.
 
-[Block 6: Anti-Patterns]
-NEVER say: {forbidden_phrases}.
-NEVER discuss: {forbidden_topics}.
-{product_specific_anti_patterns}
+[Block 6: Relationship Depth — from Trust System]
+Trust stage: {trust_stage}. {trust_stage_instructions}.
+{memory_references if applicable}
 
-[Block 7: Message Directive — changes per message]
-Generate a {message_type} message. Context: {context_summary}.
-Keep it under {character_limit} characters.
+[Block 7: Anti-Patterns]
+NEVER say: {forbidden_phrases}. NEVER discuss: {forbidden_topics}.
+
+[Block 8: Generation Directive]
+Generate a {message_category} message under {max_characters} characters.
+{channel_specific_instructions}
 ```
 
 ---
 
-## 5. The Five-Stage Message Pipeline
+## 5. The Message Pipeline (Enhanced with Message Modeling)
 
-Every message — across every product — flows through these five stages. The pipeline is the same; the configuration at each stage is product-specific.
+Every message — across every product — flows through this pipeline. The pipeline
+is the same; the configuration at each stage is product-specific.
+
+**See docs/message-modeling.md for full specs on intent, tone, signals, and composition.**
 
 ```
-┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌──────────────┐    ┌─────────────┐
-│  1. TRIGGER  │───▶│ 2. CONTEXT  │───▶│ 3. GENERATE │───▶│ 4. QUALITY   │───▶│ 5. DELIVER  │
-│ Determination│    │  Assembly   │    │   Message   │    │    Gate      │    │             │
-└─────────────┘    └─────────────┘    └─────────────┘    └──────────────┘    └─────────────┘
+┌──────────┐   ┌──────────┐   ┌───────────┐   ┌──────────┐   ┌──────────┐   ┌─────────┐   ┌──────────┐
+│ 1.TRIGGER│──▶│ 2.SIGNAL │──▶│ 3.COMPOSE │──▶│4.GENERATE│──▶│5.QUALITY │──▶│6.DELIVER│──▶│7.MEASURE │
+│          │   │COLLECTION│   │ (intent,  │   │          │   │  GATE    │   │         │   │EFFECTIVE-│
+│          │   │          │   │tone,state)│   │          │   │          │   │         │   │   NESS   │
+└──────────┘   └──────────┘   └───────────┘   └──────────┘   └──────────┘   └─────────┘   └──────────┘
 ```
+
+The pipeline expanded from 5 stages to 7. Stage 2 (Context Assembly) split into
+Signal Collection (2) and Message Composition (3). Stage 7 (Effectiveness
+Measurement) closes the feedback loop. The architecture is richer but each
+stage remains independently configurable per product.
+
+### User Experience Moments This Pipeline Serves
+
+Every pipeline run ultimately serves one of these user experience moments:
+1. **"This message made me smile"** — The message lands emotionally
+2. **"This feels like my pet/companion"** — Personality consistency
+3. **"How did it know?"** — Contextual awareness feels magical
+4. **"I look forward to these"** — Messages become part of their day
+5. **"You have to try this"** — Share-worthy moments
+
+Design decisions at every stage should trace back to which moment they serve.
 
 ### Stage 1: Trigger Determination
 
@@ -292,37 +331,98 @@ def evaluate_triggers(
     """Returns all triggers that fire right now for this user."""
 ```
 
-### Stage 2: Context Assembly
+### Stage 2: Signal Collection
+
+Replaces the previous simple "Context Assembly." Collects all available
+contextual signals from multiple sources before message composition.
+
+See docs/message-modeling.md Sections 4-5 for full signal architecture.
 
 ```python
-class MessageContext(BaseModel):
-    """Everything the LLM needs to generate an appropriate message"""
-    
-    # From trigger
-    trigger_rule: TriggerRule
-    message_category: str
-    
-    # From personality engine
-    entity_profile: EntityProfile
-    
-    # Temporal
-    local_time: datetime
-    day_of_week: str
-    time_of_day: str  # "morning" | "afternoon" | "evening" | "night"
-    
-    # History
-    recent_messages: list[str]  # Last 5-10 messages sent (for deduplication)
-    last_user_interaction: datetime | None
-    user_tenure_days: int
-    trust_stage: str  # Current trust ladder position
-    
-    # Product-specific context (flexible dict for extensibility)
-    product_context: dict = Field(default_factory=dict)
-    # JimiGPT: {"pet_breed": "golden retriever", "feeding_time": "18:00"}
-    # NeuroAmigo: {"upcoming_event": "date at 7pm", "pattern": "oversharing"}
+class ContextSignalSource(str, Enum):
+    TIME = "time"                   # Always available
+    WEATHER = "weather"             # Via weather API (Phase 2)
+    CALENDAR = "calendar"           # Via calendar API (Phase 2)
+    LOCATION = "location"           # Via GPS, mobile only (Phase 3)
+    INTERACTION = "interaction"     # From user's behavior with entity
+    SEASONAL = "seasonal"           # Holidays, seasons, milestones
+    ENTITY_MEMORY = "entity_memory" # What entity remembers about user
+
+class ContextSignal(BaseModel):
+    source: ContextSignalSource
+    signal_key: str          # e.g., "weather:rainy", "calendar:busy_day"
+    signal_value: str
+    confidence: float = 1.0
+    timestamp: datetime
+
+class ContextSignalBundle(BaseModel):
+    signals: list[ContextSignal]
+    user_id: str
+    entity_id: str
+    generated_at: datetime
 ```
 
-### Stage 3: Message Generation
+Phase 1 implements: TIME + INTERACTION + SEASONAL (no external APIs needed).
+Phase 2 adds: WEATHER + CALENDAR.
+Phase 3 adds: LOCATION.
+
+### Stage 3: Message Composition
+
+NEW stage. Takes personality + signals + trust and composes a rich message
+specification with intent, tone calibration, and recipient state awareness.
+
+See docs/message-modeling.md Sections 2-3, 6 for full composition model.
+
+```python
+class MessageIntent(str, Enum):
+    """What the message is trying to DO emotionally"""
+    AFFIRM = "affirm"          # Remind user they matter
+    ACCOMPANY = "accompany"    # Be present without agenda
+    CELEBRATE = "celebrate"    # Mark something positive
+    COMFORT = "comfort"        # Soothe during difficulty
+    GROUND = "ground"          # Bring to present moment
+    ENCOURAGE = "encourage"    # Gentle momentum
+    ENERGIZE = "energize"      # Boost mood
+    SURPRISE = "surprise"      # Unexpected delight
+    INVITE = "invite"          # Open door for interaction
+    REMIND = "remind"          # Surface something needed
+    NUDGE = "nudge"            # Gentle behavioral suggestion
+    REFLECT = "reflect"        # Prompt self-awareness
+    DEFER = "defer"            # Suggest human help
+    RESPECT = "respect"        # Honor silence
+
+class ToneSpectrum(BaseModel):
+    """Multi-dimensional tone — each dimension independent"""
+    warmth: float = Field(ge=0.0, le=1.0)
+    humor: float = Field(ge=0.0, le=1.0)
+    directness: float = Field(ge=0.0, le=1.0)
+    gravity: float = Field(ge=0.0, le=1.0)
+    energy: float = Field(ge=0.0, le=1.0)
+    vulnerability: float = Field(ge=0.0, le=1.0)
+
+class RecipientState(BaseModel):
+    """Inferred model of user's likely state right now"""
+    likely_availability: str   # "free" | "busy" | "sleeping"
+    likely_energy: float
+    likely_receptivity: float
+    emotional_context: str     # "neutral" | "positive" | "stressed" | "lonely"
+    state_confidence: float
+
+class MessageComposition(BaseModel):
+    """Complete specification for generating one message"""
+    entity_voice: EntityProfile
+    intent: MessageIntent
+    tone: ToneSpectrum
+    tone_adjustments_applied: list[dict]
+    signals: ContextSignalBundle
+    recipient_state: RecipientState
+    trust_stage: TrustStage
+    recent_messages: list[str]
+    message_category: str
+    max_characters: int = 160
+```
+
+### Stage 4: Message Generation
 
 ```python
 class GeneratedMessage(BaseModel):
@@ -334,24 +434,25 @@ class GeneratedMessage(BaseModel):
     prompt_tokens: int
     completion_tokens: int
     
-    # Metadata for quality gate
+    # From composition
     message_category: str
+    intended_intent: MessageIntent
+    intended_tone: ToneSpectrum
     character_count: int
-    estimated_sentiment: str  # "positive" | "neutral" | "gentle" | "urgent"
 
 async def generate_message(
-    context: MessageContext,
-    prompt: AssembledPrompt,
+    composition: MessageComposition,
     model: str = "claude-sonnet-4-20250514",
     max_tokens: int = 200,
 ) -> GeneratedMessage:
     """
-    Calls the LLM with assembled prompt + context to generate one message.
-    Used both for real-time generation and batch pre-generation.
+    Calls the LLM with the composed message specification.
+    The prompt now includes intent targets, tone calibration,
+    context awareness, and recipient state — not just personality.
     """
 ```
 
-### Stage 4: Quality Gate
+### Stage 5: Quality Gate
 
 ```python
 class QualityCheck(str, Enum):
@@ -362,6 +463,7 @@ class QualityCheck(str, Enum):
     LENGTH = "length"
     SAFETY = "safety"
     FORBIDDEN_PHRASES = "forbidden_phrases"
+    INTENT_ALIGNMENT = "intent_alignment"  # NEW: does message match intended intent?
 
 class QualityResult(BaseModel):
     passed: bool
@@ -386,7 +488,7 @@ class QualityGate:
         """Runs all configured checks. Message must pass ALL to proceed."""
 ```
 
-### Stage 5: Delivery
+### Stage 6: Delivery
 
 ```python
 class DeliveryChannel(str, Enum):
@@ -417,7 +519,43 @@ async def deliver_message(request: DeliveryRequest) -> DeliveryResult:
     """
 ```
 
-### Batch Pre-Generation Pipeline
+### Stage 7: Effectiveness Measurement
+
+Closes the feedback loop. Tracks whether messages achieve their intended
+emotional effect. This data feeds back into tone calibration and intent
+selection over time.
+
+See docs/message-modeling.md Section 8 for full effectiveness model.
+
+```python
+class MessageEffectiveness(BaseModel):
+    """Did the message do what it was supposed to do?"""
+    message_id: str
+    intended_intent: MessageIntent
+    intended_tone: ToneSpectrum
+    
+    # User response signals
+    user_reaction: str | None       # "positive" | "negative" | None
+    user_replied: bool
+    reply_sentiment: str | None
+    time_to_reaction_seconds: int | None
+    
+    # Computed score
+    effectiveness_score: float = Field(ge=0.0, le=1.0)
+
+async def record_effectiveness(
+    message_id: str,
+    reaction: str | None,
+    reply: str | None,
+) -> MessageEffectiveness:
+    """
+    Records user response to a message and computes effectiveness.
+    Called when: user reacts (thumbs up/down), user replies, or
+    after 24 hours with no response (implicit signal).
+    """
+```
+
+### Batch Pre-Generation Pipeline (Updated)
 
 ```python
 async def nightly_batch_generate(
@@ -427,16 +565,19 @@ async def nightly_batch_generate(
     """
     Pre-generates all messages for all users of a product for the target date.
     
-    Flow:
+    Updated flow (7-stage pipeline):
     1. Load all active users for this product
     2. For each user, evaluate which triggers fire tomorrow
-    3. For each trigger, assemble context and generate message
-    4. Run quality gate on each message
-    5. Re-generate any that fail quality gate (up to 3 attempts)
-    6. Store passing messages in delivery queue
-    7. Return summary of generated/failed/queued counts
+    3. For each trigger, collect context signals (time, interaction, seasonal)
+    4. Compose message specification (select intent, calibrate tone, infer state)
+    5. Generate message via LLM using composed specification
+    6. Run quality gate on each message
+    7. Re-generate any that fail quality gate (up to 3 attempts)
+    8. Store passing messages in delivery queue
+    9. Return summary of generated/failed/queued counts
     
     This runs as a scheduled job (APScheduler cron: 2:00 AM UTC daily).
+    Effectiveness measurement happens post-delivery, not in batch.
     """
 ```
 

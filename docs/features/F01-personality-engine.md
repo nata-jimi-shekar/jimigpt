@@ -165,6 +165,22 @@ downstream works. Get it wrong and no amount of good messaging will save it.
 **Done when:** Full pipeline works: YAML → ArchetypeConfig → blend → EntityProfile → AssembledPrompt  
 **Commit:** `test(personality): add integration test for full personality pipeline`
 
+### Task 10: Add Tone Spectrum Defaults to Archetypes
+**Time:** 20 min  
+**Context:** Read docs/message-modeling.md Sections 2-3 (Intent, Tone Calibration)  
+**What to do:**
+- Add ToneSpectrum Pydantic model to src/personality/models.py
+  (warmth, humor, directness, gravity, energy, vulnerability — all 0.0-1.0)
+- Add tone_defaults section to each archetype YAML file with appropriate values
+  (chaos_gremlin: high humor/energy, low gravity; loyal_shadow: high warmth/vulnerability)
+- Add MessageIntent enum to src/messaging/models.py (shared intent types)
+- Add intent_weights section to each archetype YAML:
+  which intents this archetype naturally excels at
+- Update ArchetypeConfig to load tone_defaults and intent_weights
+- Write tests: verify tone loads correctly, verify intent weights sum properly  
+**Done when:** Each archetype has tone defaults and intent weights  
+**Commit:** `feat(personality): add tone spectrum and intent weights to archetypes`
+
 ---
 
 ## Task Summary
@@ -180,5 +196,6 @@ downstream works. Get it wrong and no amount of good messaging will save it.
 | 7 | Prompt template fragments | 20 min | Task 2 |
 | 8 | Prompt builder | 25 min | Task 7 |
 | 9 | Integration test | 20 min | All above |
+| 10 | Tone spectrum & intent weights | 20 min | Tasks 5, 8 |
 
-**Total estimated time:** ~3.5 hours (7 reps across 2-3 daily sessions)
+**Total estimated time:** ~4 hours (8 reps across 2-3 daily sessions)
