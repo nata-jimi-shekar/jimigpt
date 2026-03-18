@@ -35,3 +35,6 @@ Thumbs.db
 
 # Ruff
 .ruff_cache/
+
+# Claude Code local settings (personal machine approvals)
+.claude/settings.local.json
