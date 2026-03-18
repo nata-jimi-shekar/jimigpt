@@ -401,12 +401,24 @@ class ToneSpectrum(BaseModel):
     vulnerability: float = Field(ge=0.0, le=1.0)
 
 class RecipientState(BaseModel):
-    """Inferred model of user's likely state right now"""
+    """Inferred model of user's likely state right now (temporal, changes hourly)"""
     likely_availability: str   # "free" | "busy" | "sleeping"
     likely_energy: float
     likely_receptivity: float
     emotional_context: str     # "neutral" | "positive" | "stressed" | "lonely"
     state_confidence: float
+
+class RecipientPreference(BaseModel):
+    """Persistent model of who the user is as a receiver (evolves over weeks).
+    See docs/message-modeling.md Section 5b for full spec.
+    Initialized from archetype selection. Evolves from effectiveness data."""
+    humor_receptivity: float = Field(ge=0.0, le=1.0)
+    warmth_preference: float = Field(ge=0.0, le=1.0)
+    energy_tolerance: float = Field(ge=0.0, le=1.0)
+    directness_preference: float = Field(ge=0.0, le=1.0)
+    vulnerability_comfort: float = Field(ge=0.0, le=1.0)
+    data_points: int = 0
+    confidence: float = Field(ge=0.0, le=1.0)
 
 class MessageComposition(BaseModel):
     """Complete specification for generating one message"""
@@ -416,6 +428,7 @@ class MessageComposition(BaseModel):
     tone_adjustments_applied: list[dict]
     signals: ContextSignalBundle
     recipient_state: RecipientState
+    recipient_preference: RecipientPreference
     trust_stage: TrustStage
     recent_messages: list[str]
     message_category: str
@@ -734,6 +747,20 @@ CREATE TABLE archetype_configs (
     personality_template JSONB NOT NULL,  -- Default EntityProfile values
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Recipient preferences (persistent, evolving model of user's communication preferences)
+CREATE TABLE recipient_preferences (
+    user_id UUID PRIMARY KEY REFERENCES user_profiles(id) ON DELETE CASCADE,
+    humor_receptivity FLOAT DEFAULT 0.5,
+    warmth_preference FLOAT DEFAULT 0.5,
+    energy_tolerance FLOAT DEFAULT 0.5,
+    directness_preference FLOAT DEFAULT 0.5,
+    vulnerability_comfort FLOAT DEFAULT 0.5,
+    message_frequency_preference TEXT DEFAULT 'default',
+    data_points INT DEFAULT 0,
+    confidence FLOAT DEFAULT 0.2,  -- Starts low (archetype inference only)
+    last_updated TIMESTAMPTZ DEFAULT NOW()
 );
 ```
 

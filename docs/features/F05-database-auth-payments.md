@@ -46,7 +46,7 @@ engines to persistent storage and user management.
 **What to do:**
 - Create scripts/migrate.sql with all shared tables:
   user_profiles, entities, messages, delivery_queue,
-  trust_events, archetype_configs
+  trust_events, archetype_configs, recipient_preferences
 - Create scripts/seed.py that loads archetype configs into archetype_configs table
 - Document: run migration via Supabase dashboard SQL editor (for now)
 - Write a simple test that verifies table schemas match expected structure  

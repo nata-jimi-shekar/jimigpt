@@ -17,14 +17,14 @@ Phase 1C: Product
   F07 → Frontend Birthing (9 tasks, ~3.5 hrs)          depends on F06
 
 Phase 1D: Polish
-  F08 → Feedback & Refinement (5 tasks, ~2 hrs)    depends on F01-F07
+  F08 → Feedback & Refinement (6 tasks, ~2.5 hrs)  depends on F01-F07  ← +1 task for recipient preference
   F09 → Batch Runner & Monitoring (5 tasks, ~2 hrs) depends on F01-F06
 ```
 
 **Key Architecture Documents:**
 - docs/category-architecture.md — Shared engine specs (v1.1, updated)
 - docs/jimigpt-architecture.md — JimiGPT-specific specs
-- docs/message-modeling.md — Message composition: intent, tone, signals, state
+- docs/message-modeling.md — Message composition: intent, tone, signals, state, recipient preference
 - docs/user-testing-strategy.md — User-backward validation approach
 
 ## Total Estimates
@@ -34,8 +34,8 @@ Phase 1D: Polish
 | 1A    | F01      | 10    | 4.0             |
 | 1B    | F02-F04  | 24    | 9.0             |
 | 1C    | F05-F07  | 20    | 8.0             |
-| 1D    | F08-F09  | 10    | 4.0             |
-| **Total** | **9 features** | **64 tasks** | **~25 hours** |
+| 1D    | F08-F09  | 11    | 4.5             |
+| **Total** | **9 features** | **65 tasks** | **~25.5 hours** |
 
 At 3-4 productive hours per day, that's approximately **7-9 weeks** to MVP.
 

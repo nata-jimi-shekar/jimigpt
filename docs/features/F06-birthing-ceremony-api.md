@@ -79,14 +79,18 @@ first message generation, and birth certificate generation.
 - Accepts: name, photos (optional, may already be analyzed), story,
   confirmed_archetype, secondary_archetype, weights
 - Creates EntityProfile (blended from confirmed archetypes + pet details)
-- Persists entity to database
+- **Initializes RecipientPreference from archetype selection**
+  (See docs/message-modeling.md Section 5b — archetype choice reveals
+  user's communication preferences. Chaos Gremlin picker → high humor_receptivity)
+- Persists entity AND recipient preference to database
 - Generates first message using new profile
 - Returns: entity_id, first_message, entity_profile summary
 - Write tests:
   - Birth creates entity in database
+  - RecipientPreference initialized with correct values for archetype
   - First message is in the entity's voice
   - All required fields returned  
-**Done when:** Birth endpoint creates a complete Digital Twin  
+**Done when:** Birth endpoint creates a complete Digital Twin with recipient preference  
 **Commit:** `feat(jimigpt): add birth endpoint for Digital Twin creation`
 
 ### Task 5: Birth Certificate Generator

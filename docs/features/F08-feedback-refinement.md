@@ -103,6 +103,29 @@ quiet mode, and personality weight adjustment based on accumulated feedback.
 **Done when:** Users can react to messages and toggle quiet mode  
 **Commit:** `feat(frontend): add reaction buttons and quiet mode UI`
 
+### Task 6: Recipient Preference Evolution
+**Time:** 25 min  
+**Context:** Read docs/message-modeling.md Section 5b (Recipient Preference Model)  
+**What to do:**
+- Create src/messaging/recipient_preference.py with:
+  update_recipient_preference(current, message_effectiveness) -> RecipientPreference
+- Wire into message reaction flow: when user reacts (Task 3),
+  look up the message's intended tone, compare with reaction,
+  and adjust relevant preference dimensions
+- Rules: positive reaction to high-humor → humor_receptivity += 0.03,
+  negative reaction to high-humor → humor_receptivity -= 0.05,
+  ignored high-energy → energy_tolerance -= 0.02
+  (negative adjustments stronger than positive — loss aversion)
+- Update confidence: min(1.0, data_points / 50)
+- Update tone calibration to include apply_preference_adjustment()
+- Write tests:
+  - Positive reaction adjusts preference correctly
+  - Negative reaction has stronger effect
+  - Values clamp at 0.0 and 1.0
+  - Confidence increases with data points  
+**Done when:** Reactions evolve recipient preference, tone calibration uses it  
+**Commit:** `feat(messaging): add recipient preference evolution from reactions`
+
 ---
 
 ## Task Summary
@@ -114,5 +137,6 @@ quiet mode, and personality weight adjustment based on accumulated feedback.
 | 3 | Message reaction system | 20 min | F05 |
 | 4 | Quiet mode | 20 min | F03 |
 | 5 | Frontend reaction & quiet mode | 25 min | Tasks 3-4 |
+| 6 | Recipient preference evolution | 25 min | Task 3, F02 |
 
-**Total estimated time:** ~2 hours (5 reps, 1-2 daily sessions)
+**Total estimated time:** ~2.5 hours (6 reps, 2 daily sessions)

@@ -29,7 +29,8 @@ Delivered Experience = f(
     Message Intent,        ← WHY this message exists
     Tone Calibration,      ← HOW it should feel
     Context Signals,       ← WHAT is happening in the user's world
-    Recipient State Model, ← WHERE the user likely is emotionally
+    Recipient State Model, ← WHERE the user likely is emotionally right now
+    Recipient Preference,  ← WHO the user is as a receiver (persistent, evolving)
     Delivery Moment        ← WHEN and through WHAT channel
 )
 ```
@@ -431,6 +432,151 @@ def infer_recipient_state(
 
 ---
 
+## 5b. Recipient Preference Model (Persistent)
+
+RecipientState (above) captures WHERE the user is right now — temporal, situational.
+RecipientPreference captures WHO the user is as a receiver — persistent, evolving.
+
+State changes every hour. Preference changes over weeks.
+
+The key insight: the same message lands differently on different people. A
+high-humor message delights one user and annoys another. Preference captures
+this difference so the tone calibration engine can adjust for the actual human
+on the other end.
+
+```python
+class RecipientPreference(BaseModel):
+    """
+    Persistent model of what this user responds to.
+    
+    Initialization: Derived from archetype selection during birthing.
+    Someone who picks Chaos Gremlin signals high humor tolerance.
+    Someone who picks Gentle Soul signals warmth preference.
+    
+    Evolution: Updated from message effectiveness data.
+    Thumbs up on a humorous message → humor_receptivity += 0.05
+    Three ignored high-energy messages → energy_tolerance -= 0.1
+    
+    Cross-product: If a user has both JimiGPT and NeuroAmigo,
+    their RecipientPreference travels between products (future).
+    """
+    
+    user_id: str
+    
+    # Core preference dimensions (mirror ToneSpectrum for direct comparison)
+    humor_receptivity: float = Field(
+        ge=0.0, le=1.0,
+        description="How much they enjoy humor in messages. 0.0 = prefers serious, 1.0 = loves playful"
+    )
+    warmth_preference: float = Field(
+        ge=0.0, le=1.0,
+        description="How much they value emotional warmth. 0.0 = prefers cool/factual, 1.0 = deeply warm"
+    )
+    energy_tolerance: float = Field(
+        ge=0.0, le=1.0,
+        description="How much energy they can receive. 0.0 = overwhelmed by energy, 1.0 = loves it"
+    )
+    directness_preference: float = Field(
+        ge=0.0, le=1.0,
+        description="Prefer blunt or gentle. 0.0 = very indirect, 1.0 = very direct"
+    )
+    vulnerability_comfort: float = Field(
+        ge=0.0, le=1.0,
+        description="Comfort with emotionally open messages. 0.0 = prefers guarded, 1.0 = welcomes depth"
+    )
+    
+    # Frequency preference
+    message_frequency_preference: str = Field(
+        default="default",
+        description="fewer | default | more — adjusted from behavior"
+    )
+    
+    # Model metadata
+    data_points: int = Field(default=0, description="Number of reactions that informed this model")
+    last_updated: datetime
+    confidence: float = Field(
+        ge=0.0, le=1.0,
+        description="0.0 = pure archetype inference, 1.0 = well-established from behavior"
+    )
+
+
+def initialize_recipient_preference(
+    archetype_selection: str,
+    secondary_archetype: str | None,
+) -> RecipientPreference:
+    """
+    Creates initial RecipientPreference from archetype choice during birthing.
+    
+    The archetype the user picks tells us about THEM, not just their pet:
+    - Chaos Gremlin picker → humor_receptivity=0.8, energy_tolerance=0.9
+    - Gentle Soul picker → warmth_preference=0.95, energy_tolerance=0.3
+    - Regal One picker → directness_preference=0.7, humor_receptivity=0.6
+    
+    Confidence starts at 0.2 (archetype inference only).
+    """
+
+
+def update_recipient_preference(
+    current: RecipientPreference,
+    message_effectiveness: MessageEffectiveness,
+) -> RecipientPreference:
+    """
+    Adjusts preference based on one message's effectiveness.
+    
+    Rules:
+    - Positive reaction to high-humor message → humor_receptivity += 0.03
+    - Negative reaction to high-humor message → humor_receptivity -= 0.05
+    - Ignored high-energy message → energy_tolerance -= 0.02
+    - Reply to warm message → warmth_preference += 0.03
+    - Negative adjustments are stronger than positive (loss aversion)
+    - All values clamped to 0.0-1.0
+    - data_points incremented, confidence recalculated
+    
+    Confidence formula: min(1.0, data_points / 50)
+    After ~50 reactions, the model is considered well-calibrated.
+    """
+```
+
+### How Recipient Preference Feeds Into Tone Calibration
+
+The tone calibration engine (Section 3) already adjusts tone from archetype
+defaults based on context signals. Recipient Preference adds one more
+adjustment layer:
+
+```
+Final Tone = Archetype Default
+           + Signal Adjustments (time, weather, interaction)
+           + Preference Adjustment (recipient's persistent preferences)
+```
+
+The preference adjustment compares the archetype's tone defaults with the
+recipient's preferences. If the archetype defaults to humor=0.9 but the
+recipient's humor_receptivity is 0.5, the calibration engine pulls humor
+down toward 0.7. The entity's personality is preserved but modulated for
+the actual human receiving the message.
+
+```python
+def apply_preference_adjustment(
+    tone: ToneSpectrum,
+    preference: RecipientPreference,
+    preference_weight: float = 0.3,  # How much preference influences vs. personality
+) -> ToneSpectrum:
+    """
+    Blends personality-driven tone with recipient preference.
+    
+    preference_weight controls the balance:
+    - 0.0 = pure personality (ignore recipient)
+    - 0.3 = personality-led with recipient modulation (recommended)
+    - 0.5 = equal weight (personality becomes generic)
+    - 1.0 = pure recipient preference (personality disappears)
+    
+    Keep weight at 0.3 or below to preserve entity personality.
+    The entity should sound like itself, just adapted for this human.
+    """
+```
+
+---
+
 ## 6. Message Composition Model
 
 This is where everything comes together. The Message Composition Model takes
@@ -456,6 +602,9 @@ class MessageComposition(BaseModel):
     # From Context System
     signals: ContextSignalBundle
     recipient_state: RecipientState
+    
+    # From Recipient Preference (persistent, evolving)
+    recipient_preference: RecipientPreference
     
     # From Trust System
     trust_stage: TrustStage
@@ -716,20 +865,27 @@ Implement in layers that match your phase plan.
 - Updated prompt structure with intent and tone blocks
 - Basic RecipientState inference from time + interaction history
 
+### Phase 1C-1D (During Birthing & Feedback features)
+- RecipientPreference model (initialized from archetype selection during birthing)
+- apply_preference_adjustment() in tone calibration (lightweight addition)
+- Preference passed into MessageComposition
+- Message effectiveness tracking (foundation for preference evolution)
+
 ### Phase 2 (After MVP)
 - Weather signal collector (OpenWeatherMap API)
 - Calendar signal collector (Google Calendar OAuth)
 - Full ContextSignalBundle with multiple sources
 - EntityWorldModel (known places, routines, preferences)
 - Entity relationships (multi-pet support)
-- Message effectiveness tracking
+- RecipientPreference behavioral evolution (update_recipient_preference from effectiveness data)
 
 ### Phase 3 (After Traction)
 - Location signal collector (mobile GPS)
 - Device activity signals
 - Intent effectiveness optimization (auto-adjust tone per intent)
 - Cross-entity messaging (pets referencing each other)
-- Full feedback loop: effectiveness → personality refinement → better messages
+- Cross-product RecipientPreference (shared between JimiGPT and NeuroAmigo)
+- Full feedback loop: effectiveness → preference update → personality refinement → better messages
 
 ---
 
@@ -744,7 +900,7 @@ BEFORE:
 
 AFTER:
   Trigger → Signal Collection → Intent Selection → Tone Calibration 
-  → Recipient State Inference → Message Composition → Generate(rich prompt) 
+  → Recipient State + Preference → Message Composition → Generate(rich prompt) 
   → Quality Gate → Effectiveness Tracking → Deliver
 ```
 
@@ -752,7 +908,7 @@ The pipeline gains three new sub-stages within what was previously just
 "Context Assembly":
 1. Signal Collection (gather all available context)
 2. Intent Selection (determine WHY this message exists)
-3. Tone Calibration (adjust HOW the message should feel)
+3. Tone Calibration (adjust HOW the message should feel, modulated by recipient preference)
 
 And one new sub-stage after delivery:
 4. Effectiveness Tracking (did the message work?)
