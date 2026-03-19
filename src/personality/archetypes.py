@@ -4,7 +4,7 @@ import uuid
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, ValidationError
 
 from src.personality.models import (
     CommunicationStyle,
@@ -12,6 +12,7 @@ from src.personality.models import (
     EntityProfile,
     KnowledgeAwareness,
     RelationalStance,
+    ToneSpectrum,
 )
 
 _DEFAULT_CONFIG_DIR = Path(__file__).parent.parent.parent / "config" / "archetypes"
@@ -29,6 +30,8 @@ class ArchetypeConfig(BaseModel):
     knowledge: KnowledgeAwareness
     forbidden_phrases: list[str] = []
     forbidden_topics: list[str] = []
+    tone_defaults: ToneSpectrum | None = None
+    intent_weights: dict[str, float] = Field(default_factory=dict)
 
 
 def load_archetype(path: Path) -> ArchetypeConfig:

@@ -45,3 +45,19 @@ forbidden_phrases:
 forbidden_topics:
   - "veterinary advice"
   - "medical diagnosis"
+
+tone_defaults:
+  warmth: 0.7
+  humor: 0.85
+  directness: 0.9
+  gravity: 0.05
+  energy: 0.9
+  vulnerability: 0.2
+
+intent_weights:
+  remind: 0.30
+  energize: 0.20
+  invite: 0.20
+  surprise: 0.15
+  celebrate: 0.10
+  nudge: 0.05

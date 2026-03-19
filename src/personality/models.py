@@ -5,6 +5,17 @@ from pydantic import BaseModel, Field
 from src.personality.enums import EnergyLevel
 
 
+class ToneSpectrum(BaseModel):
+    """Multi-dimensional tone calibration — each dimension independent."""
+
+    warmth: float = Field(ge=0.0, le=1.0, description="0.0 = cool/detached, 1.0 = deeply warm")
+    humor: float = Field(ge=0.0, le=1.0, description="0.0 = completely serious, 1.0 = highly playful")
+    directness: float = Field(ge=0.0, le=1.0, description="0.0 = very indirect, 1.0 = blunt and clear")
+    gravity: float = Field(ge=0.0, le=1.0, description="0.0 = light/casual, 1.0 = deeply serious")
+    energy: float = Field(ge=0.0, le=1.0, description="0.0 = calm/still, 1.0 = highly energetic")
+    vulnerability: float = Field(ge=0.0, le=1.0, description="0.0 = guarded, 1.0 = emotionally open")
+
+
 class CommunicationStyle(BaseModel):
     """HOW the entity talks."""
 
