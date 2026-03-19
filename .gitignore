@@ -38,3 +38,6 @@ Thumbs.db
 
 # Claude Code local settings (personal machine approvals)
 .claude/settings.local.json
+
+# Personal task tracking (local only)
+docs/tasks/
