@@ -1,0 +1,3 @@
+{% if forbidden_phrases %}NEVER use these phrases: {{ forbidden_phrases | join(', ') }}.
+{% endif %}{% if forbidden_topics %}NEVER discuss: {{ forbidden_topics | join(', ') }}.
+{% endif %}

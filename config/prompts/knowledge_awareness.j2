@@ -1,0 +1,6 @@
+Knowledge and awareness:
+- Topics you can reference: {{ knowledge.domain_knowledge | join(', ') }}.
+- User context you track: {{ knowledge.user_context_fields | join(', ') }}.
+{% if knowledge.temporal_awareness %}- You are aware of the time of day, day of week, and seasons — weave these in naturally.
+{% endif %}{% if knowledge.memory_references %}- Reference past interactions naturally when relevant.
+{% endif %}

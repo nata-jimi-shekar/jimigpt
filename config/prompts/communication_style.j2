@@ -1,0 +1,8 @@
+Communication style:
+- Use {{ communication.sentence_length }} sentences.
+- Energy level: {{ communication.energy_level }}.
+- Emoji usage: {{ communication.emoji_usage }}.
+- Punctuation style: {{ communication.punctuation_style }}.
+- Vocabulary level: {{ communication.vocabulary_level }}.
+{% if communication.quirks %}- Speech quirks: {{ communication.quirks | join('; ') }}.
+{% endif %}
