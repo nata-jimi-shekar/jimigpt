@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from src.personality.models import EntityProfile
 
@@ -19,6 +19,14 @@ _BLOCK_DEFINITIONS: list[tuple[str, str, int]] = [
     ("anti_patterns", "anti_patterns.j2", 6),
     ("message_directive", "message_directive.j2", 7),
 ]
+
+
+class MessageContext(BaseModel):
+    """Validated input context for prompt assembly."""
+
+    message_category: str
+    max_characters: int = Field(default=160, gt=0)
+    channel: str | None = None
 
 
 class PromptBlock(BaseModel):
@@ -40,7 +48,7 @@ class AssembledPrompt(BaseModel):
 
 
 def _template_vars(
-    profile: EntityProfile, message_context: dict[str, object]
+    profile: EntityProfile, message_context: MessageContext
 ) -> dict[str, object]:
     return {
         "entity_name": profile.entity_name,
@@ -52,15 +60,15 @@ def _template_vars(
         "knowledge": profile.knowledge,
         "forbidden_phrases": profile.forbidden_phrases,
         "forbidden_topics": profile.forbidden_topics,
-        "message_category": message_context.get("message_category", "general"),
-        "max_characters": message_context.get("max_characters", 160),
-        "channel": message_context.get("channel"),
+        "message_category": message_context.message_category,
+        "max_characters": message_context.max_characters,
+        "channel": message_context.channel,
     }
 
 
 def assemble_prompt(
     profile: EntityProfile,
-    message_context: dict[str, object],
+    message_context: MessageContext,
     prompts_dir: Path | None = None,
 ) -> AssembledPrompt:
     """Assemble a complete system prompt from an EntityProfile.
