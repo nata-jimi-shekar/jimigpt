@@ -1,0 +1,77 @@
+# Tone adjustment rules — signal → dimension shift
+# signal format: "{signal_key}:{signal_value}"
+# Trust stage is injected as "trust_stage:{stage_value}"
+# adjustment range: -0.5 to +0.5  (clamped to 0.0–1.0 after application)
+
+tone_rules:
+
+  # --- TIME OF DAY ---
+
+  - signal: "time_of_day:morning"
+    dimension: "energy"
+    adjustment: 0.1
+    reason: "Mornings are naturally higher energy"
+
+  - signal: "time_of_day:midday"
+    dimension: "energy"
+    adjustment: 0.05
+    reason: "Midday carries moderate energy"
+
+  - signal: "time_of_day:early_morning"
+    dimension: "energy"
+    adjustment: -0.15
+    reason: "Very early morning messages should be calm and quiet"
+
+  - signal: "time_of_day:evening"
+    dimension: "energy"
+    adjustment: -0.1
+    reason: "Evening messages wind down"
+
+  - signal: "time_of_day:night"
+    dimension: "energy"
+    adjustment: -0.3
+    reason: "Nighttime messages should be calmer"
+
+  - signal: "time_of_day:night"
+    dimension: "gravity"
+    adjustment: 0.1
+    reason: "Night messages can be slightly more reflective"
+
+  - signal: "time_of_day:late_night"
+    dimension: "energy"
+    adjustment: -0.4
+    reason: "Late night messages should be very calm"
+
+  - signal: "time_of_day:late_night"
+    dimension: "gravity"
+    adjustment: 0.15
+    reason: "Late night is the most reflective time"
+
+  # --- INTERACTION SENTIMENT ---
+
+  - signal: "interaction:last_response_sentiment:negative"
+    dimension: "humor"
+    adjustment: -0.3
+    reason: "Don't be funny when user is struggling"
+
+  - signal: "interaction:last_response_sentiment:negative"
+    dimension: "warmth"
+    adjustment: 0.2
+    reason: "Increase warmth when user needs support"
+
+  # --- TRUST STAGE ---
+
+  - signal: "trust_stage:stranger"
+    dimension: "vulnerability"
+    adjustment: -0.3
+    reason: "Don't be emotionally open with new users"
+
+  - signal: "trust_stage:deep"
+    dimension: "vulnerability"
+    adjustment: 0.2
+    reason: "Can be more emotionally open with established relationships"
+
+  - signal: "trust_stage:alliance"
+    dimension: "vulnerability"
+    adjustment: 0.3
+    reason: "Maximum emotional openness with trusted relationships"
