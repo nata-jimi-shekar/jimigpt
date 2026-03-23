@@ -27,13 +27,26 @@ code is entity-agnostic; pet-specific logic lives in configuration only.
 ## Architecture Rules
 - IMPORTANT: Read docs/category-architecture.md for shared component specs.
 - IMPORTANT: Read docs/jimigpt-architecture.md for product-specific specs.
+- IMPORTANT: Read docs/future-architecture.md for Phase 2+ foundation designs.
+  When building Phase 1 features, include the foundation fields documented here.
+- IMPORTANT: Read docs/message-modeling.md for message composition architecture.
 - Every engine component MUST be entity-agnostic at the core.
   Pet-specific logic belongs in config/ YAML files and PetProfile extension.
   Ask yourself: "Would this work for NeuroAmigo with only config changes?"
 - Four-layer personality model: Communication Style, Emotional Disposition,
   Relational Stance, Knowledge & Awareness
-- Message pipeline: Trigger → Context → Generate → Quality Gate → Deliver
+- Message pipeline: Trigger → Signal Collection → Compose → Generate → Quality Gate → Deliver → Measure
 - Pydantic models for ALL data. No raw dicts. No Any types.
+
+## Foundation Fields (Phase 2+ Preparation)
+When building F02-F05, include optional foundation fields for future features:
+- Message Arcs: arc_id, arc_position on MessageComposition (None in Phase 1)
+- Multi-Recipient: recipient_id parameter on compose functions (owner ID in Phase 1)
+- Life Events: life_contexts parameter on intent/tone/recipient functions (None in Phase 1)
+- Multi-Pet: sibling_entity_schedules on trigger orchestrator (None in Phase 1)
+- User Context: USER_CONTEXT in ContextSignalSource enum (no collector in Phase 1)
+These fields MUST default to None or empty. They MUST NOT change Phase 1 behavior.
+They MUST be tested with their default values.
 
 ## Code Style
 - Python 3.12+ features OK (type unions with |, match statements)
@@ -52,6 +65,7 @@ code is entity-agnostic; pet-specific logic lives in configuration only.
 - Test files mirror src/ structure in tests/
 - Use fixtures in conftest.py for shared test data.
 - Mock external services (Anthropic API, Twilio, Supabase) in unit tests.
+- Foundation fields: test that None/empty defaults work correctly.
 
 ## Git Workflow
 - NEVER commit directly to main.
@@ -74,10 +88,22 @@ code is entity-agnostic; pet-specific logic lives in configuration only.
 - To start a task, tell Claude: "Read docs/features/F##. Working on Task N."
 - Claude reads the feature doc + referenced architecture sections, then implements with TDD.
 
+## Review Workflow
+- Multi-model review system documented in docs/review/REVIEW-WORKFLOW.md
+- Opus reviews: high-blast-radius tasks in F02-F05 (template: docs/review/opus-review-brief.md)
+- Codex reviews: after every feature (template: docs/review/codex-review-brief.md)
+- Gemini reviews: strategic, after F02/F04/F06/F08 (template: docs/review/gemini-strategic-brief.md)
+- Parallel message testing: starts after F02-T11 (rubric: docs/review/parallel-testing-rubric.md)
+- Triage outputs: docs/review/triage/
+- Cumulative patterns: docs/review/patterns.md
+
 ## Reference Docs
 - Category Architecture: docs/category-architecture.md
 - JimiGPT Architecture: docs/jimigpt-architecture.md
 - Message Modeling: docs/message-modeling.md
+- Future Architecture: docs/future-architecture.md
 - Features: docs/features/
 - User Testing Strategy: docs/user-testing-strategy.md
+- Review Workflow: docs/review/REVIEW-WORKFLOW.md
+- Customer Lens Review: docs/review/architecture-customer-lens-review.md
 - Current sprint: docs/tasks/current-sprint.md
