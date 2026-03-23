@@ -1,11 +1,13 @@
 """Archetype configuration loading and listing."""
 
+import logging
 import uuid
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, field_validator
 
+from src.messaging.models import MessageIntent
 from src.personality.models import (
     CommunicationStyle,
     EmotionalDisposition,
@@ -14,6 +16,8 @@ from src.personality.models import (
     RelationalStance,
     ToneSpectrum,
 )
+
+logger = logging.getLogger(__name__)
 
 _DEFAULT_CONFIG_DIR = Path(__file__).parent.parent.parent / "config" / "archetypes"
 
@@ -30,8 +34,27 @@ class ArchetypeConfig(BaseModel):
     knowledge: KnowledgeAwareness
     forbidden_phrases: list[str] = []
     forbidden_topics: list[str] = []
-    tone_defaults: ToneSpectrum | None = None
+    tone_defaults: ToneSpectrum
     intent_weights: dict[str, float] = Field(default_factory=dict)
+
+    @field_validator("intent_weights")
+    @classmethod
+    def validate_intent_weights(cls, v: dict[str, float]) -> dict[str, float]:
+        valid_intents = {intent.value for intent in MessageIntent}
+        for key, weight in v.items():
+            if key not in valid_intents:
+                raise ValueError(
+                    f"Invalid intent key {key!r}. Valid intents: {sorted(valid_intents)}"
+                )
+            if not (0.0 <= weight <= 1.0):
+                raise ValueError(
+                    f"Intent weight for {key!r} must be in [0.0, 1.0], got {weight}"
+                )
+        if v and abs(sum(v.values()) - 1.0) > 1e-9:
+            raise ValueError(
+                f"intent_weights must sum to 1.0, got {sum(v.values()):.6f}"
+            )
+        return v
 
 
 def load_archetype(path: Path) -> ArchetypeConfig:
@@ -75,7 +98,8 @@ def list_archetypes(
     for yaml_file in sorted(product_dir.glob("*.yaml")):
         try:
             archetypes.append(load_archetype(yaml_file))
-        except (FileNotFoundError, ValueError):
+        except (FileNotFoundError, ValueError) as exc:
+            logger.warning("Skipping invalid archetype file %s: %s", yaml_file, exc)
             continue
 
     return archetypes
@@ -104,6 +128,17 @@ def blend_archetypes(
     total = sum(weights.values())
     if abs(total - 1.0) > 1e-9:
         raise ValueError(f"Weights must sum to 1.0, got {total:.6f}")
+
+    expected_keys = {primary.id} if secondary is None else {primary.id, secondary.id}
+    actual_keys = set(weights.keys())
+    if actual_keys != expected_keys:
+        raise ValueError(
+            f"Weight keys must be exactly {expected_keys}, got {actual_keys}"
+        )
+
+    for key, w in weights.items():
+        if not (0.0 <= w <= 1.0):
+            raise ValueError(f"Weight for {key!r} must be in [0.0, 1.0], got {w}")
 
     product = primary.id.split(":")[0]
 

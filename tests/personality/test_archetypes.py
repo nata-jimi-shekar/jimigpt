@@ -17,6 +17,7 @@ from src.personality.models import (
     EntityProfile,
     KnowledgeAwareness,
     RelationalStance,
+    ToneSpectrum,
 )
 
 ARCHETYPES_DIR = Path(__file__).parent.parent.parent / "config" / "archetypes"
@@ -209,6 +210,9 @@ def alpha() -> ArchetypeConfig:
         ),
         forbidden_phrases=["phrase_a"],
         forbidden_topics=["topic_shared"],
+        tone_defaults=ToneSpectrum(
+            warmth=0.8, humor=0.9, directness=0.7, gravity=0.1, energy=0.95, vulnerability=0.3
+        ),
     )
 
 
@@ -246,6 +250,9 @@ def beta() -> ArchetypeConfig:
         ),
         forbidden_phrases=["phrase_b"],
         forbidden_topics=["topic_b", "topic_shared"],
+        tone_defaults=ToneSpectrum(
+            warmth=0.3, humor=0.2, directness=0.6, gravity=0.7, energy=0.2, vulnerability=0.5
+        ),
     )
 
 
@@ -354,3 +361,129 @@ def test_blend_archetypes_secondary_none_invalid_weights(
 ) -> None:
     with pytest.raises(ValueError, match="[Ww]eights"):
         blend_archetypes(alpha, None, {"test:alpha": 0.8})
+
+
+# ---------------------------------------------------------------------------
+# blend_archetypes — weight key validation (Critical Fix #1)
+# ---------------------------------------------------------------------------
+
+
+def test_blend_archetypes_wrong_key_raises(
+    alpha: ArchetypeConfig, beta: ArchetypeConfig
+) -> None:
+    with pytest.raises(ValueError, match="[Ww]eight"):
+        blend_archetypes(alpha, beta, {"wrong:key": 1.0})
+
+
+def test_blend_archetypes_extra_key_raises(
+    alpha: ArchetypeConfig, beta: ArchetypeConfig
+) -> None:
+    with pytest.raises(ValueError, match="[Ww]eight"):
+        blend_archetypes(alpha, beta, {"test:alpha": 0.5, "test:beta": 0.3, "extra:key": 0.2})
+
+
+def test_blend_archetypes_negative_weight_raises(
+    alpha: ArchetypeConfig, beta: ArchetypeConfig
+) -> None:
+    with pytest.raises(ValueError, match="[Ww]eight"):
+        blend_archetypes(alpha, beta, {"test:alpha": 1.1, "test:beta": -0.1})
+
+
+def test_blend_archetypes_secondary_none_wrong_key_raises(
+    alpha: ArchetypeConfig,
+) -> None:
+    with pytest.raises(ValueError, match="[Ww]eight"):
+        blend_archetypes(alpha, None, {"wrong:key": 1.0})
+
+
+# ---------------------------------------------------------------------------
+# ArchetypeConfig — intent_weights validation (Important Fix #1)
+# ---------------------------------------------------------------------------
+
+
+_MINIMAL_TONE = ToneSpectrum(
+    warmth=0.5, humor=0.5, directness=0.5, gravity=0.5, energy=0.5, vulnerability=0.5
+)
+_MINIMAL_COMM = CommunicationStyle(
+    sentence_length="short",
+    energy_level=EnergyLevel.HIGH,
+    emoji_usage="none",
+    punctuation_style="calm_periods",
+    vocabulary_level="simple",
+)
+_MINIMAL_EMOT = EmotionalDisposition(
+    baseline_mood="calm", emotional_range="narrow", need_expression="subtle", humor_style="dry"
+)
+_MINIMAL_RELA = RelationalStance(
+    attachment_style="balanced", initiative_style="mixed", boundary_respect="high", warmth_level="warm"
+)
+_MINIMAL_KNOW = KnowledgeAwareness(
+    domain_knowledge=["things"],
+    user_context_fields=["stuff"],
+    temporal_awareness=False,
+    memory_references=False,
+)
+
+
+def test_archetype_config_invalid_intent_key_raises() -> None:
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError, match="[Ii]ntent"):
+        ArchetypeConfig(
+            id="test:x",
+            name="X",
+            description="test",
+            communication=_MINIMAL_COMM,
+            emotional=_MINIMAL_EMOT,
+            relational=_MINIMAL_RELA,
+            knowledge=_MINIMAL_KNOW,
+            tone_defaults=_MINIMAL_TONE,
+            intent_weights={"not_a_real_intent": 1.0},
+        )
+
+
+def test_archetype_config_intent_weight_out_of_range_raises() -> None:
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError, match="[Ww]eight|[Rr]ange|[Bb]ound"):
+        ArchetypeConfig(
+            id="test:x",
+            name="X",
+            description="test",
+            communication=_MINIMAL_COMM,
+            emotional=_MINIMAL_EMOT,
+            relational=_MINIMAL_RELA,
+            knowledge=_MINIMAL_KNOW,
+            tone_defaults=_MINIMAL_TONE,
+            intent_weights={"energize": 1.5},
+        )
+
+
+# ---------------------------------------------------------------------------
+# list_archetypes — invalid file signals a warning (Important Fix #3)
+# ---------------------------------------------------------------------------
+
+
+def test_list_archetypes_logs_warning_for_invalid_yaml(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    import logging
+
+    product_dir = tmp_path / "testproduct"
+    product_dir.mkdir()
+
+    # Valid archetype
+    valid_yaml = product_dir / "valid.yaml"
+    valid_yaml.write_text(
+        (ARCHETYPES_DIR / "jimigpt" / "chaos_gremlin.yaml").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    # Invalid (bad YAML)
+    bad_yaml = product_dir / "zzz_bad.yaml"
+    bad_yaml.write_text("id: [unclosed bracket\nname: oops", encoding="utf-8")
+
+    with caplog.at_level(logging.WARNING, logger="src.personality.archetypes"):
+        result = list_archetypes("testproduct", config_dir=tmp_path)
+
+    assert len(result) == 1
+    assert any("zzz_bad.yaml" in record.message for record in caplog.records)

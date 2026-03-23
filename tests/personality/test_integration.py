@@ -6,7 +6,7 @@ import pytest
 
 from src.personality.archetypes import blend_archetypes, load_archetype
 from src.personality.pet_profile import PetProfile
-from src.personality.prompt_builder import AssembledPrompt, assemble_prompt
+from src.personality.prompt_builder import AssembledPrompt, MessageContext, assemble_prompt
 
 ARCHETYPES_DIR = Path(__file__).parent.parent.parent / "config" / "archetypes"
 CHAOS_GREMLIN_PATH = ARCHETYPES_DIR / "jimigpt" / "chaos_gremlin.yaml"
@@ -14,11 +14,11 @@ LOYAL_SHADOW_PATH = ARCHETYPES_DIR / "jimigpt" / "loyal_shadow.yaml"
 
 BLEND_WEIGHTS = {"jimigpt:chaos_gremlin": 0.7, "jimigpt:loyal_shadow": 0.3}
 
-MESSAGE_CONTEXT: dict[str, object] = {
-    "message_category": "greeting",
-    "max_characters": 160,
-    "channel": "sms",
-}
+MESSAGE_CONTEXT = MessageContext(
+    message_category="greeting",
+    max_characters=160,
+    channel="sms",
+)
 
 
 # ---------------------------------------------------------------------------
