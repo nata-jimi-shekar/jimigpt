@@ -173,16 +173,28 @@ def test_score_positive_reaction_and_reply_no_sentiment() -> None:
 
 
 def test_score_positive_reaction_and_positive_sentiment_no_reply() -> None:
-    # sentiment bonus only applies when user_replied=True (they replied with positive sentiment)
-    # reaction + sentiment without a reply = 0.3 + 0.2
+    """Sentiment bonus must NOT apply when user_replied=False.
+
+    Codex review fix: positive reply_sentiment without a reply is logically
+    inconsistent — the sentiment bonus should be gated behind user_replied.
+    """
     score = score_effectiveness(
         user_reaction="positive",
         user_replied=False,
         reply_sentiment="positive",
     )
-    # reply_sentiment without a reply is logically inconsistent but should score
-    # whatever the system allows; we just verify the total is <= 0.7
-    assert 0.0 <= score <= 0.7
+    # Only the reaction bonus (0.3) should apply; sentiment bonus is gated
+    assert score == pytest.approx(0.3)
+
+
+def test_score_sentiment_without_reply_is_zero() -> None:
+    """Regression: reply_sentiment="positive" with user_replied=False → no sentiment bonus."""
+    score = score_effectiveness(
+        user_reaction=None,
+        user_replied=False,
+        reply_sentiment="positive",
+    )
+    assert score == pytest.approx(0.0)
 
 
 def test_score_always_in_valid_range() -> None:

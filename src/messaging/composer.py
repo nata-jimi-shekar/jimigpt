@@ -13,11 +13,17 @@ Foundation (Phase 2):
 from pydantic import BaseModel, Field
 
 from src.messaging.intent import IntentProfile, TrustStage, select_intent
+from src.messaging.models import MessageIntent
 from src.messaging.recipient import RecipientState, TrustProfile, infer_recipient_state
 from src.messaging.signals import ContextSignalBundle
 from src.messaging.tone import ToneRule, calibrate_tone
 from src.messaging.triggers import TriggerRule
 from src.personality.models import EntityProfile, ToneSpectrum
+
+# Balanced intent weights — used when caller does not supply archetype-specific weights
+_BALANCED_INTENT_WEIGHTS: dict[str, float] = {
+    i.value: 1.0 / len(MessageIntent) for i in MessageIntent
+}
 
 # Default tone when caller does not supply archetype-specific defaults
 _NEUTRAL_TONE = ToneSpectrum(
@@ -106,34 +112,43 @@ class MessageComposer:
         message_history: list[str],
         *,
         tone_defaults: ToneSpectrum | None = None,
+        intent_weights: dict[str, float] | None = None,
         recipient_id: str | None = None,  # Foundation: Phase 2 multi-recipient
+        life_contexts: list[str] | None = None,  # Foundation: Phase 2 life events
     ) -> MessageComposition:
         """Orchestrate signals → intent → tone → state → MessageComposition.
 
-        Foundation:
-        - recipient_id: explicit recipient. In Phase 1, caller passes owner ID
-          or leaves None. Phase 2 passes any target recipient.
-        - life_contexts defaults to None throughout — Phase 1 ignores it.
+        Args:
+            intent_weights: Intent-keyed weights (e.g. {"energize": 0.4}).
+                Must NOT be archetype blend weights. Falls back to balanced
+                distribution when omitted.
+            life_contexts: Active life contexts forwarded to intent/tone/state
+                engines. None in Phase 1 — Phase 2 activates overrides.
+            recipient_id: Explicit recipient. Phase 1 = owner ID or None.
         """
         base_tone = tone_defaults if tone_defaults is not None else _NEUTRAL_TONE
+        weights = intent_weights if intent_weights is not None else _BALANCED_INTENT_WEIGHTS
 
         intent = select_intent(
             trigger=trigger,
             signals=signals,
             trust_stage=trust.current_stage,
-            archetype_weights=entity.archetype_weights,
+            archetype_weights=weights,
+            life_contexts=life_contexts,
         )
 
         tone_result = calibrate_tone(
             archetype_defaults=base_tone,
             signals=signals,
             trust_stage=trust.current_stage,
+            life_contexts=life_contexts,
         )
 
         recipient_state = infer_recipient_state(
             signals=signals,
             trust_profile=trust,
             interaction_history=[],
+            life_contexts=life_contexts,
         )
 
         return MessageComposition(

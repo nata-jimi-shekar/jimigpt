@@ -58,8 +58,8 @@ def score_effectiveness(
         score += _POSITIVE_REACTION_WEIGHT
     if user_replied:
         score += _REPLY_WEIGHT
-    if reply_sentiment == "positive":
-        score += _POSITIVE_SENTIMENT_WEIGHT
+        if reply_sentiment == "positive":
+            score += _POSITIVE_SENTIMENT_WEIGHT
     return round(min(score, 1.0), 10)
 
 

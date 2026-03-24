@@ -397,6 +397,55 @@ def test_compose_foundation_fields_default_to_none_or_empty() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Codex review fix: life_contexts must be accepted and forwarded by compose()
+# ---------------------------------------------------------------------------
+
+
+def test_compose_accepts_life_contexts_param() -> None:
+    """compose() must accept life_contexts as a keyword argument."""
+    composer = MessageComposer()
+    result = composer.compose(
+        entity=_entity(),
+        trigger=_trigger(),
+        signals=_bundle(),
+        trust=_trust(),
+        message_history=[],
+        tone_defaults=_tone_defaults(),
+        life_contexts=["sick_day"],
+    )
+    assert isinstance(result, MessageComposition)
+
+
+def test_compose_life_contexts_none_default() -> None:
+    """Omitting life_contexts should produce empty list on composition."""
+    composer = MessageComposer()
+    result = composer.compose(
+        entity=_entity(),
+        trigger=_trigger(),
+        signals=_bundle(),
+        trust=_trust(),
+        message_history=[],
+        tone_defaults=_tone_defaults(),
+    )
+    assert result.life_contexts == []
+
+
+def test_compose_life_contexts_explicit_none_same_as_omitted() -> None:
+    """Explicit life_contexts=None should produce same result as omitting."""
+    composer = MessageComposer()
+    result = composer.compose(
+        entity=_entity(),
+        trigger=_trigger(),
+        signals=_bundle(),
+        trust=_trust(),
+        message_history=[],
+        tone_defaults=_tone_defaults(),
+        life_contexts=None,
+    )
+    assert result.life_contexts == []
+
+
+# ---------------------------------------------------------------------------
 # MessageComposer.to_prompt() — 8 blocks
 # ---------------------------------------------------------------------------
 
@@ -543,6 +592,47 @@ def test_to_prompt_all_blocks_in_system_prompt() -> None:
     for block in result.blocks:
         # At least some content from each block appears in the full prompt
         assert any(line.strip() in result.system_prompt for line in block.splitlines() if line.strip())
+
+
+# ---------------------------------------------------------------------------
+# Full compose() → to_prompt() pipeline
+# ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# Codex review fix: compose() must pass intent_weights, not archetype blend weights
+# ---------------------------------------------------------------------------
+
+
+def test_compose_accepts_intent_weights_param() -> None:
+    """compose() must accept intent_weights to pass to select_intent()."""
+    intent_weights = {i.value: 1.0 / 14 for i in MessageIntent}
+    composer = MessageComposer()
+    result = composer.compose(
+        entity=_entity(),
+        trigger=_trigger(),
+        signals=_bundle(),
+        trust=_trust(),
+        message_history=[],
+        tone_defaults=_tone_defaults(),
+        intent_weights=intent_weights,
+    )
+    assert isinstance(result.intent, IntentProfile)
+
+
+def test_compose_without_intent_weights_uses_balanced_fallback() -> None:
+    """When intent_weights is omitted, compose() should use balanced fallback."""
+    composer = MessageComposer()
+    result = composer.compose(
+        entity=_entity(),
+        trigger=_trigger(),
+        signals=_bundle(),
+        trust=_trust(),
+        message_history=[],
+        tone_defaults=_tone_defaults(),
+    )
+    # Should not raise even though entity.archetype_weights are blend keys
+    assert isinstance(result.intent, IntentProfile)
 
 
 # ---------------------------------------------------------------------------
