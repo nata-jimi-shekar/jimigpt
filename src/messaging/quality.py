@@ -14,12 +14,15 @@ Foundation (Phase 2):
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 
 from src.messaging.composer import MessageComposition
-from src.messaging.generator import GeneratedMessage
 from src.messaging.models import MessageIntent
+
+if TYPE_CHECKING:
+    from src.messaging.generator import GeneratedMessage
 
 # ---------------------------------------------------------------------------
 # Character-breaking phrases (entity must never reveal it is an AI)
