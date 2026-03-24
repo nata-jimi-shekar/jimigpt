@@ -7,12 +7,15 @@ Every row is a complete training example: input context → output → score.
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 
 from src.messaging.composer import MessageComposition
-from src.messaging.generator import GeneratedMessage
 from src.messaging.quality import QualityResult
+
+if TYPE_CHECKING:
+    from src.messaging.generator import GeneratedMessage
 
 # ---------------------------------------------------------------------------
 # In-memory store (Phase 1 only)

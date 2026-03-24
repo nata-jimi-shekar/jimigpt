@@ -7,6 +7,7 @@ for the quality gate and effectiveness tracking.
 
 from __future__ import annotations
 
+import logging
 import uuid
 from datetime import datetime, timezone
 
@@ -16,6 +17,7 @@ from pydantic import BaseModel, Field
 from src.messaging.composer import MessageComposer, MessageComposition
 from src.messaging.models import MessageIntent
 from src.personality.models import ToneSpectrum
+from src.shared.generation_log import log_generation
 from src.shared.llm import (
     AnthropicProvider,
     BaseProvider,
@@ -24,6 +26,8 @@ from src.shared.llm import (
     ModelConfig,
     RoutingDecision,
 )
+
+_log = logging.getLogger(__name__)
 
 DEFAULT_MODEL = "claude-sonnet-4-6"
 _DEFAULT_MAX_TOKENS = 200
@@ -101,7 +105,7 @@ async def generate_message(
         **generate_kwargs,
     )
 
-    return GeneratedMessage(
+    generated = GeneratedMessage(
         message_id=str(uuid.uuid4()),
         entity_id=composition.entity_voice.entity_id,
         content=llm_response.content,
@@ -117,3 +121,23 @@ async def generate_message(
         cost_usd=llm_response.cost_usd,
         latency_ms=llm_response.latency_ms,
     )
+
+    from src.messaging.quality import QualityCheck, QualityGate  # avoid circular import
+    quality = QualityGate(checks=[
+        QualityCheck.LENGTH,
+        QualityCheck.SAFETY,
+        QualityCheck.CHARACTER_CONSISTENCY,
+        QualityCheck.FORBIDDEN_PHRASES,
+    ]).evaluate(generated, composition)
+
+    try:
+        log_generation(
+            composition=composition,
+            generated=generated,
+            quality=quality,
+            prompt_text=prompt.system_prompt,
+        )
+    except Exception:
+        _log.exception("log_generation failed — continuing without log")
+
+    return generated
