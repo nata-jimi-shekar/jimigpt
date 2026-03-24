@@ -1,0 +1,38 @@
+# LLM Routing Configuration
+# Provider format: "provider:model_id"
+# Phase 1: AnthropicProvider only. OpenAI/Local stubs raise NotConfiguredError.
+
+# Default routing — cost-optimized for standard messages
+default:
+  primary: "anthropic:claude-haiku-4-5"
+  fallback:
+    - "cached:personality_matched"
+  max_cost_per_message_usd: 0.001
+
+# High-stakes messages get better models
+high_stakes:
+  triggers:
+    - trust_stage: "deep"
+    - intent: "comfort"
+    - intent: "defer"
+  primary: "anthropic:claude-sonnet-4-6"
+  fallback:
+    - "anthropic:claude-haiku-4-5"
+    - "cached:personality_matched"
+  max_cost_per_message_usd: 0.005
+
+# First message (birthing ceremony) — premium quality
+first_impression:
+  triggers:
+    - trust_stage: "stranger"
+    - message_category: "first_message"
+  primary: "anthropic:claude-sonnet-4-6"
+  fallback:
+    - "anthropic:claude-haiku-4-5"
+  max_cost_per_message_usd: 0.005
+
+# Quality testing — random sample through alternative model
+quality_test:
+  sample_rate: 0.05
+  model: "openai:gpt-4o-mini"
+  enabled: false  # Enable when OpenAI provider is implemented

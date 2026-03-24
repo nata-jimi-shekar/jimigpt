@@ -92,6 +92,7 @@ class AnthropicProvider(BaseProvider):
         routing_decision: RoutingDecision,
     ) -> None:
         self._model_config = model_config
+        self.model_id = model_config.model_id
         self._routing_decision = routing_decision
 
     async def generate(
