@@ -531,3 +531,32 @@ def test_full_gate_clean_message_passes_all() -> None:
     assert result.passed is True
     assert len(result.checks_run) == len(_ALL_CHECKS)
     assert result.checks_failed == []
+
+
+# ---------------------------------------------------------------------------
+# Opus review fix: TONE_MATCH must catch flat messages on high energy spec
+# ---------------------------------------------------------------------------
+
+
+def test_tone_match_fails_flat_message_with_high_energy_spec() -> None:
+    """A flat, lifeless message contradicts a high energy spec (>0.7)."""
+    high_energy = ToneSpectrum(
+        warmth=0.8, humor=0.9, directness=0.7, gravity=0.1, energy=0.95, vulnerability=0.3
+    )
+    gate = QualityGate(checks=[QualityCheck.TONE_MATCH])
+    # No exclamation, no caps, no emoji — flat and low-energy
+    msg = _message("hey. i guess it is morning.", tone=high_energy)
+    result = gate.evaluate(msg, _composition(tone=high_energy))
+    assert result.passed is False
+    assert QualityCheck.TONE_MATCH in result.checks_failed
+
+
+def test_tone_match_passes_lively_message_with_high_energy_spec() -> None:
+    """A lively message should pass the high energy spec check."""
+    high_energy = ToneSpectrum(
+        warmth=0.8, humor=0.9, directness=0.7, gravity=0.1, energy=0.9, vulnerability=0.3
+    )
+    gate = QualityGate(checks=[QualityCheck.TONE_MATCH])
+    msg = _message("Good morning! Ready for a great day!", tone=high_energy)
+    result = gate.evaluate(msg, _composition(tone=high_energy))
+    assert result.passed is True

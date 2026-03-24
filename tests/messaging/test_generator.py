@@ -357,3 +357,24 @@ def test_default_model_is_claude_sonnet() -> None:
     from src.messaging.generator import DEFAULT_MODEL
     assert "claude" in DEFAULT_MODEL
     assert "sonnet" in DEFAULT_MODEL
+
+
+# ---------------------------------------------------------------------------
+# Opus review fix: empty API response must not crash
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_generate_message_empty_response_raises_generation_error() -> None:
+    """Empty content list from API should raise GenerationError, not IndexError."""
+    from src.messaging.generator import GenerationError
+
+    client = MagicMock()
+    mock_response = MagicMock()
+    mock_response.content = []  # Empty!
+    mock_response.usage.input_tokens = 100
+    mock_response.usage.output_tokens = 0
+    client.messages.create = AsyncMock(return_value=mock_response)
+
+    with pytest.raises(GenerationError):
+        await generate_message(_composition(), client=client)
