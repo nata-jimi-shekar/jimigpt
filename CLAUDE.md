@@ -7,7 +7,7 @@ code is entity-agnostic; pet-specific logic lives in configuration only.
 ## Tech Stack
 - Backend: Python 3.12+, FastAPI, Pydantic v2
 - Database: Supabase (PostgreSQL + Auth)
-- LLM: Anthropic Claude API (personality/message generation)
+- LLM: Provider-agnostic via src/shared/llm.py (Anthropic primary, OpenAI fallback, local future)
 - Messaging: Twilio SMS
 - Testing: pytest + pytest-asyncio (TDD mandatory)
 - Linting: Ruff
@@ -25,11 +25,13 @@ code is entity-agnostic; pet-specific logic lives in configuration only.
 - Dev server: uvicorn src.main:app --reload
 
 ## Architecture Rules
+- IMPORTANT: Read docs/unified-roadmap.md for the single source of all phases and milestones.
 - IMPORTANT: Read docs/category-architecture.md for shared component specs.
 - IMPORTANT: Read docs/jimigpt-architecture.md for product-specific specs.
 - IMPORTANT: Read docs/future-architecture.md for Phase 2+ foundation designs.
   When building Phase 1 features, include the foundation fields documented here.
 - IMPORTANT: Read docs/message-modeling.md for message composition architecture.
+- IMPORTANT: Read docs/model-resilience-intelligence.md for LLM abstraction and intelligence strategy.
 - Every engine component MUST be entity-agnostic at the core.
   Pet-specific logic belongs in config/ YAML files and PetProfile extension.
   Ask yourself: "Would this work for NeuroAmigo with only config changes?"
@@ -37,6 +39,13 @@ code is entity-agnostic; pet-specific logic lives in configuration only.
   Relational Stance, Knowledge & Awareness
 - Message pipeline: Trigger → Signal Collection → Compose → Generate → Quality Gate → Deliver → Measure
 - Pydantic models for ALL data. No raw dicts. No Any types.
+
+## LLM Provider Rules
+- NEVER call Anthropic (or any LLM) directly. Always go through src/shared/llm.py provider abstraction.
+- Generator (src/messaging/generator.py) uses BaseProvider interface, not anthropic.AsyncAnthropic.
+- Model selection comes from config/llm_routing.yaml, not hardcoded strings.
+- Every generation MUST be logged via log_generation() for intelligence collection.
+- Logging is fire-and-forget — MUST NOT slow down or break message generation.
 
 ## Foundation Fields (Phase 2+ Preparation)
 When building F02-F05, include optional foundation fields for future features:
@@ -64,7 +73,7 @@ They MUST be tested with their default values.
   no forbidden phrases, correct sentiment). Never assert exact LLM output.
 - Test files mirror src/ structure in tests/
 - Use fixtures in conftest.py for shared test data.
-- Mock external services (Anthropic API, Twilio, Supabase) in unit tests.
+- Mock external services (LLM providers, Twilio, Supabase) in unit tests.
 - Foundation fields: test that None/empty defaults work correctly.
 
 ## Git Workflow
@@ -75,6 +84,7 @@ They MUST be tested with their default values.
   feat(personality): add archetype blending logic
   test(messaging): add trigger evaluation tests
   fix(delivery): handle Twilio timeout error
+  refactor(shared): use LLM provider abstraction in generator
 
 ## Working Style
 - I work in 20-minute focused reps. Keep tasks completable in one rep.
@@ -83,27 +93,31 @@ They MUST be tested with their default values.
 - After completing a task, tell me what to commit and the commit message.
 
 ## Feature Workflow
-- Each feature is documented in docs/features/F##-feature-name.md
+- Each feature is documented in docs/features/F##-feature-name.md (or R##)
+- Feature index with execution order: docs/features/INDEX.md
 - Each feature contains micro-tasks (~20 min each) with context pointers
 - To start a task, tell Claude: "Read docs/features/F##. Working on Task N."
 - Claude reads the feature doc + referenced architecture sections, then implements with TDD.
 
 ## Review Workflow
 - Multi-model review system documented in docs/review/REVIEW-WORKFLOW.md
-- Opus reviews: high-blast-radius tasks in F02-F05 (template: docs/review/opus-review-brief.md)
+- Opus reviews: high-blast-radius tasks (template: docs/review/opus-review-brief.md)
 - Codex reviews: after every feature (template: docs/review/codex-review-brief.md)
-- Gemini reviews: strategic, after F02/F04/F06/F08 (template: docs/review/gemini-strategic-brief.md)
-- Parallel message testing: starts after F02-T11 (rubric: docs/review/parallel-testing-rubric.md)
+- Gemini reviews: strategic (template: docs/review/gemini-strategic-brief.md)
+- Parallel message testing: ongoing (rubric: docs/review/parallel-testing-rubric.md)
 - Triage outputs: docs/review/triage/
 - Cumulative patterns: docs/review/patterns.md
 
 ## Reference Docs
+- **Unified Roadmap: docs/unified-roadmap.md** ← START HERE for phases and milestones
 - Category Architecture: docs/category-architecture.md
 - JimiGPT Architecture: docs/jimigpt-architecture.md
 - Message Modeling: docs/message-modeling.md
 - Future Architecture: docs/future-architecture.md
-- Features: docs/features/
+- Model Resilience & Intelligence: docs/model-resilience-intelligence.md
+- Foundation Per Feature: docs/foundation-per-feature.md
+- Strategic Deep Dive: docs/strategic-deep-dive.md
+- Feature Index: docs/features/INDEX.md
 - User Testing Strategy: docs/user-testing-strategy.md
 - Review Workflow: docs/review/REVIEW-WORKFLOW.md
 - Customer Lens Review: docs/review/architecture-customer-lens-review.md
-- Current sprint: docs/tasks/current-sprint.md
