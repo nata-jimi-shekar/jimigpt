@@ -12,7 +12,7 @@ Foundation (Phase 2):
 
 from __future__ import annotations
 
-import copy
+import logging
 from pathlib import Path
 
 import yaml
@@ -70,8 +70,16 @@ def calibrate_tone(
     }
     applied: list[ToneRule] = []
 
+    logger = logging.getLogger(__name__)
     for rule in all_rules:
         if rule.signal in active_signals:
+            if rule.dimension not in _TONE_DIMENSIONS:
+                logger.warning(
+                    "Skipping tone rule with unknown dimension %r (signal=%r)",
+                    rule.dimension,
+                    rule.signal,
+                )
+                continue
             dims[rule.dimension] = _clamp(dims[rule.dimension] + rule.adjustment)
             applied.append(rule)
 

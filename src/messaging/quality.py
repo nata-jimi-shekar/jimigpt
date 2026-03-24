@@ -208,9 +208,15 @@ def _check_safety(message: GeneratedMessage) -> tuple[bool, str]:
 def _check_tone_match(
     message: GeneratedMessage, composition: MessageComposition
 ) -> tuple[bool, str]:
-    """Flag high-excitement markers when energy spec is very low."""
+    """Flag tone/content mismatch in both directions.
+
+    Direction 1: high-excitement markers when energy spec is very low.
+    Direction 2: flat, lifeless content when energy spec is high.
+    """
     tone = composition.tone
     content = message.content
+
+    # Direction 1: high excitement contradicts low energy spec
     if tone.energy < 0.3:
         caps_ratio = sum(1 for c in content if c.isupper()) / max(len(content), 1)
         exclamation_count = content.count("!")
@@ -221,6 +227,19 @@ def _check_tone_match(
                 f"{exclamation_count} exclamations) contradicts low energy "
                 f"spec ({tone.energy:.2f}).",
             )
+
+    # Direction 2: flat content contradicts high energy spec
+    if tone.energy > 0.7:
+        has_exclamation = "!" in content
+        has_uppercase_word = any(w.isupper() and len(w) > 1 for w in content.split())
+        has_emoji = any(ord(c) > 0x1F600 for c in content)
+        if not has_exclamation and not has_uppercase_word and not has_emoji:
+            return (
+                False,
+                f"Flat content lacks energy markers (no exclamations, caps, "
+                f"or emoji) but energy spec is high ({tone.energy:.2f}).",
+            )
+
     return True, ""
 
 

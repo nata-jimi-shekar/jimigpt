@@ -24,6 +24,10 @@ _GENERATE_TRIGGER = "Please generate the message now."
 _composer = MessageComposer()
 
 
+class GenerationError(Exception):
+    """Raised when LLM generation fails in a non-retryable way."""
+
+
 class GeneratedMessage(BaseModel):
     """Output of one LLM generation call."""
 
@@ -65,6 +69,9 @@ async def generate_message(
         system=prompt.system_prompt,
         messages=[{"role": "user", "content": _GENERATE_TRIGGER}],
     )
+
+    if not response.content:
+        raise GenerationError("API returned empty content list — no message generated.")
 
     content: str = response.content[0].text
     prompt_tokens: int = response.usage.input_tokens
