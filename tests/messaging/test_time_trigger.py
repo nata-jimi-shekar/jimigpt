@@ -199,3 +199,22 @@ def test_timezone_and_window_interact_correctly() -> None:
     now = datetime(2026, 3, 23, 8, 0, tzinfo=UTC)
     # 8am UTC = 4am EDT — cron fires at 8am UTC, but locally it's 4am (outside window)
     assert evaluate_time_trigger(rule, now, "America/New_York") is False
+
+
+# ---------------------------------------------------------------------------
+# Codex review fix: invalid cron expressions must fail closed
+# ---------------------------------------------------------------------------
+
+
+def test_invalid_cron_expression_returns_false() -> None:
+    """Malformed cron should return False, not raise."""
+    rule = _time_rule(schedule_cron="INVALID CRON")
+    now = datetime(2026, 3, 23, 8, 0, tzinfo=UTC)
+    assert evaluate_time_trigger(rule, now, "UTC") is False
+
+
+def test_partial_cron_expression_returns_false() -> None:
+    """Incomplete cron (too few fields) should return False, not raise."""
+    rule = _time_rule(schedule_cron="0 8 *")
+    now = datetime(2026, 3, 23, 8, 0, tzinfo=UTC)
+    assert evaluate_time_trigger(rule, now, "UTC") is False

@@ -433,3 +433,63 @@ def test_life_contexts_empty_list_works() -> None:
         life_contexts=[],
     )
     assert isinstance(result, IntentProfile)
+
+
+# ---------------------------------------------------------------------------
+# Codex review fix: archetype_weights must be intent-keyed, not blend-keyed
+# ---------------------------------------------------------------------------
+
+
+def test_personality_moment_playful_weights_selects_energize() -> None:
+    """Playful intent weights (energize=0.40) should pick ENERGIZE for personality_moment."""
+    result = select_intent(
+        trigger=_random_rule("personality_moment"),
+        signals=_time_bundle(),
+        trust_stage=TrustStage.WORKING,
+        archetype_weights=_PLAYFUL_WEIGHTS,
+    )
+    assert result.primary_intent == MessageIntent.ENERGIZE
+
+
+def test_anniversary_playful_weights_selects_celebrate_over_surprise() -> None:
+    """Playful weights: celebrate=0.02 vs surprise=0.36 → SURPRISE wins."""
+    signals = _bundle([
+        _sig("time_of_day", "morning"),
+        _sig("day_type", "workday"),
+        _sig("seasonal:entity_anniversary", "true", ContextSignalSource.SEASONAL),
+    ])
+    result = select_intent(
+        trigger=_rule("greeting"),
+        signals=signals,
+        trust_stage=TrustStage.WORKING,
+        archetype_weights=_PLAYFUL_WEIGHTS,
+    )
+    assert result.primary_intent == MessageIntent.SURPRISE
+
+
+def test_unknown_category_uses_highest_intent_weight() -> None:
+    """Unknown category should return a valid MessageIntent from archetype weights."""
+    result = select_intent(
+        trigger=_rule("some_future_category"),
+        signals=_time_bundle(),
+        trust_stage=TrustStage.WORKING,
+        archetype_weights=_PLAYFUL_WEIGHTS,
+    )
+    # PLAYFUL_WEIGHTS: energize=0.40 is the highest
+    assert result.primary_intent == MessageIntent.ENERGIZE
+
+
+def test_blend_weights_not_accepted_as_intent_weights() -> None:
+    """Blend weights keyed by archetype IDs must NOT be used directly for intent selection.
+
+    This is a regression test for the F01→F02 contract bug found by Codex.
+    """
+    blend_weights = {"jimigpt:chaos_gremlin": 1.0}
+    # Unknown category path would try MessageIntent(best) where best is an archetype ID
+    with pytest.raises((ValueError, KeyError)):
+        select_intent(
+            trigger=_rule("some_future_category"),
+            signals=_time_bundle(),
+            trust_stage=TrustStage.WORKING,
+            archetype_weights=blend_weights,
+        )
