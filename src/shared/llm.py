@@ -142,3 +142,84 @@ class AnthropicProvider(BaseProvider):
             latency_ms=latency_ms,
             routing_decision=self._routing_decision,
         )
+
+
+class NotConfiguredError(Exception):
+    """Raised when a provider is not yet configured for use."""
+
+
+class OpenAIProvider(BaseProvider):
+    """OpenAI provider stub — not implemented. Raises NotConfiguredError."""
+
+    def __init__(self, routing_decision: RoutingDecision) -> None:
+        self._routing_decision = routing_decision
+
+    async def generate(
+        self,
+        system_prompt: str,
+        user_message: str,
+        *,
+        model: str,
+        max_tokens: int,
+        client: object | None = None,
+    ) -> LLMResponse:
+        raise NotConfiguredError(
+            "OpenAI provider is not configured. "
+            "Set OPENAI_API_KEY and enable the provider in config/llm_routing.yaml."
+        )
+
+
+class LocalProvider(BaseProvider):
+    """Local model provider stub (Ollama/vLLM) — Phase 2+. Raises NotConfiguredError."""
+
+    def __init__(self, routing_decision: RoutingDecision) -> None:
+        self._routing_decision = routing_decision
+
+    async def generate(
+        self,
+        system_prompt: str,
+        user_message: str,
+        *,
+        model: str,
+        max_tokens: int,
+        client: object | None = None,
+    ) -> LLMResponse:
+        raise NotConfiguredError(
+            "Local model provider is not configured. "
+            "Install Ollama and set LOCAL_MODEL_URL to enable local inference (Phase 2)."
+        )
+
+
+class CachedProvider(BaseProvider):
+    """Pre-generated message pool fallback. Returns fallback text when pool is empty."""
+
+    _FALLBACK_CONTENT = "Message temporarily unavailable."
+
+    def __init__(
+        self,
+        routing_decision: RoutingDecision,
+        message_pool: list[str] | None = None,
+    ) -> None:
+        self._routing_decision = routing_decision
+        self._pool: list[str] = message_pool or []
+
+    async def generate(
+        self,
+        system_prompt: str,
+        user_message: str,
+        *,
+        model: str,
+        max_tokens: int,
+        client: object | None = None,
+    ) -> LLMResponse:
+        content = self._pool[0] if self._pool else self._FALLBACK_CONTENT
+        return LLMResponse(
+            content=content,
+            provider=LLMProvider.CACHED,
+            model_id="cached",
+            input_tokens=0,
+            output_tokens=0,
+            cost_usd=0.0,
+            latency_ms=0,
+            routing_decision=self._routing_decision,
+        )
