@@ -1,0 +1,79 @@
+# Fingerprint Test Suite
+# Fixed scenarios for personality drift detection.
+# Run after model changes, weekly, or before promoting a new model to production.
+# Each scenario specifies the archetype, trigger context, and expected tone signature.
+
+tests:
+  # --- One scenario per archetype ---
+
+  - name: "chaos_gremlin_morning_burst"
+    archetype: "chaos_gremlin"
+    trigger: "morning_greeting"
+    signals: {time_of_day: "morning", day_type: "weekday"}
+    expected_tone: {energy: 0.9, humor: 0.8}
+    notes: "Should be frenetic, exclamatory, emoji-heavy"
+
+  - name: "loyal_shadow_comfort_checkin"
+    archetype: "loyal_shadow"
+    trigger: "caring_checkin"
+    signals: {last_sentiment: "negative", days_since_reply: 3}
+    expected_tone: {warmth: 0.9, energy: 0.3}
+    notes: "Should be steady, warm, low exclamation"
+
+  - name: "regal_one_afternoon_presence"
+    archetype: "regal_one"
+    trigger: "personality_moment"
+    signals: {time_of_day: "afternoon"}
+    expected_tone: {directness: 0.8, gravity: 0.5, energy: 0.3}
+    notes: "Should be measured, dignified, minimal emoji"
+
+  - name: "anxious_sweetheart_worry_check"
+    archetype: "anxious_sweetheart"
+    trigger: "caring_checkin"
+    signals: {days_since_reply: 2, last_sentiment: "neutral"}
+    expected_tone: {warmth: 0.8, energy: 0.5}
+    notes: "Should show concern through questions and soft warmth"
+
+  - name: "gentle_soul_evening_wind_down"
+    archetype: "gentle_soul"
+    trigger: "evening_checkin"
+    signals: {time_of_day: "evening", day_type: "weekday"}
+    expected_tone: {warmth: 0.8, energy: 0.2, gravity: 0.3}
+    notes: "Should be soothing, gentle, no caps"
+
+  - name: "adventure_buddy_weekend_hype"
+    archetype: "adventure_buddy"
+    trigger: "morning_greeting"
+    signals: {time_of_day: "morning", day_type: "weekend"}
+    expected_tone: {energy: 0.85, humor: 0.6}
+    notes: "Should be enthusiastic, action-oriented"
+
+  - name: "couch_potato_lazy_afternoon"
+    archetype: "couch_potato"
+    trigger: "afternoon_checkin"
+    signals: {time_of_day: "afternoon", day_type: "weekend"}
+    expected_tone: {energy: 0.2, humor: 0.5, gravity: 0.1}
+    notes: "Should be relaxed, low-key, mildly funny"
+
+  - name: "food_monster_mealtime_excitement"
+    archetype: "food_monster"
+    trigger: "meal_reminder"
+    signals: {time_of_day: "noon"}
+    expected_tone: {energy: 0.7, humor: 0.6}
+    notes: "Should express food obsession with moderate energy"
+
+  # --- Cross-archetype edge cases ---
+
+  - name: "chaos_gremlin_comfort_mode"
+    archetype: "chaos_gremlin"
+    trigger: "comfort"
+    signals: {last_sentiment: "negative", trust_stage: "deep"}
+    expected_tone: {energy: 0.4, warmth: 0.7}
+    notes: "Even chaos gremlin should dial back energy for comfort intent"
+
+  - name: "regal_one_energize_mode"
+    archetype: "regal_one"
+    trigger: "energize"
+    signals: {time_of_day: "morning", day_type: "monday"}
+    expected_tone: {energy: 0.5, directness: 0.8}
+    notes: "Regal one energizing should still be dignified, not frenetic"
