@@ -378,3 +378,21 @@ async def test_generate_message_empty_response_raises_generation_error() -> None
 
     with pytest.raises(GenerationError):
         await generate_message(_composition(), client=client)
+
+
+# ---------------------------------------------------------------------------
+# Critical fix: default provider must use correct cost rates for the model
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_default_provider_sonnet_cost_is_not_haiku() -> None:
+    """Backward-compat path with DEFAULT_MODEL (Sonnet) must use Sonnet pricing,
+    not Haiku pricing. Sonnet input cost is 0.003/1k, Haiku is 0.00025/1k."""
+    client = _mock_client("Hello!")  # 150 input, 12 output
+    result = await generate_message(_composition(), client=client)
+    # Sonnet: (150/1000 * 0.003) + (12/1000 * 0.015) = 0.00045 + 0.00018 = 0.00063
+    # Haiku:  (150/1000 * 0.00025) + (12/1000 * 0.00125) = 0.0000375 + 0.000015 = 0.0000525
+    assert result.cost_usd > 0.0005, (
+        f"cost_usd={result.cost_usd} looks like Haiku pricing, expected Sonnet"
+    )

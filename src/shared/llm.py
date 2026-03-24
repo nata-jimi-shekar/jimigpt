@@ -27,6 +27,17 @@ class LLMProvider(str, Enum):
     CACHED = "cached"  # Fallback: pre-generated messages
 
 
+# Centralized cost rates per model (per 1k tokens: input, output)
+MODEL_COSTS: dict[str, tuple[float, float]] = {
+    "claude-haiku-4-5": (0.00025, 0.00125),
+    "claude-sonnet-4-6": (0.003, 0.015),
+}
+
+# Default fallback costs when model is unknown
+_DEFAULT_INPUT_COST = 0.00025
+_DEFAULT_OUTPUT_COST = 0.00125
+
+
 class ModelConfig(BaseModel):
     """Configuration for one model endpoint."""
 

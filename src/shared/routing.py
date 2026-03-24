@@ -14,27 +14,17 @@ import yaml
 from pydantic import BaseModel
 
 from src.shared.llm import (
+    MODEL_COSTS,
     AnthropicProvider,
     BaseProvider,
     LLMProvider,
     ModelConfig,
     RoutingDecision,
+    _DEFAULT_INPUT_COST,
+    _DEFAULT_OUTPUT_COST,
 )
 
 _CONFIG_PATH = Path(__file__).parent.parent.parent / "config" / "llm_routing.yaml"
-
-# Haiku cost rates (per 1k tokens)
-_HAIKU_INPUT_COST = 0.00025
-_HAIKU_OUTPUT_COST = 0.00125
-
-# Sonnet cost rates (per 1k tokens)
-_SONNET_INPUT_COST = 0.003
-_SONNET_OUTPUT_COST = 0.015
-
-_MODEL_COSTS: dict[str, tuple[float, float]] = {
-    "claude-haiku-4-5": (_HAIKU_INPUT_COST, _HAIKU_OUTPUT_COST),
-    "claude-sonnet-4-6": (_SONNET_INPUT_COST, _SONNET_OUTPUT_COST),
-}
 
 
 class RoutingConfig(BaseModel):
@@ -58,8 +48,8 @@ def _parse_provider_string(provider_str: str) -> tuple[str, str]:
 
 
 def _make_anthropic_provider(model_id: str, routing_rule: str) -> AnthropicProvider:
-    input_cost, output_cost = _MODEL_COSTS.get(
-        model_id, (_HAIKU_INPUT_COST, _HAIKU_OUTPUT_COST)
+    input_cost, output_cost = MODEL_COSTS.get(
+        model_id, (_DEFAULT_INPUT_COST, _DEFAULT_OUTPUT_COST)
     )
     config = ModelConfig(
         provider=LLMProvider.ANTHROPIC,
