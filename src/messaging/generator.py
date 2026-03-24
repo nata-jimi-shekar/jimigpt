@@ -19,12 +19,15 @@ from src.messaging.models import MessageIntent
 from src.personality.models import ToneSpectrum
 from src.shared.generation_log import log_generation
 from src.shared.llm import (
+    MODEL_COSTS,
     AnthropicProvider,
     BaseProvider,
     GenerationError,
     LLMProvider,
     ModelConfig,
     RoutingDecision,
+    _DEFAULT_INPUT_COST,
+    _DEFAULT_OUTPUT_COST,
 )
 
 _log = logging.getLogger(__name__)
@@ -60,11 +63,14 @@ class GeneratedMessage(BaseModel):
 
 
 def _default_provider(model: str) -> AnthropicProvider:
+    input_cost, output_cost = MODEL_COSTS.get(
+        model, (_DEFAULT_INPUT_COST, _DEFAULT_OUTPUT_COST)
+    )
     config = ModelConfig(
         provider=LLMProvider.ANTHROPIC,
         model_id=model,
-        cost_per_1k_input=0.00025,
-        cost_per_1k_output=0.00125,
+        cost_per_1k_input=input_cost,
+        cost_per_1k_output=output_cost,
         max_tokens=_DEFAULT_MAX_TOKENS,
     )
     routing = RoutingDecision(
@@ -90,7 +96,13 @@ async def generate_message(
     ``client`` is kept for backward compatibility — when provided, it is
     passed through to AnthropicProvider so existing tests continue to work.
     """
-    _provider = provider or _default_provider(model)
+    if provider is not None:
+        _provider = provider
+        _model = getattr(provider, "model_id", model)
+    else:
+        _provider = _default_provider(model)
+        _model = model
+
     prompt = _composer.to_prompt(composition)
 
     generate_kwargs: dict[str, object] = {}
@@ -100,7 +112,7 @@ async def generate_message(
     llm_response = await _provider.generate(
         system_prompt=prompt.system_prompt,
         user_message=_GENERATE_TRIGGER,
-        model=model,
+        model=_model,
         max_tokens=max_tokens,
         **generate_kwargs,
     )
@@ -110,7 +122,7 @@ async def generate_message(
         entity_id=composition.entity_voice.entity_id,
         content=llm_response.content,
         generated_at=datetime.now(tz=timezone.utc),
-        model_used=model,
+        model_used=llm_response.model_id,
         prompt_tokens=llm_response.input_tokens,
         completion_tokens=llm_response.output_tokens,
         message_category=composition.message_category,

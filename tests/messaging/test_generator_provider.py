@@ -223,3 +223,27 @@ def test_generated_message_provider_defaults_to_anthropic() -> None:
     assert msg.provider == "anthropic"
     assert msg.cost_usd == 0.0
     assert msg.latency_ms == 0
+
+
+# ---------------------------------------------------------------------------
+# Critical fix: model_used must come from LLMResponse, not DEFAULT_MODEL
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_generate_message_with_provider_model_used_from_response() -> None:
+    """model_used must reflect the provider's model, not the default parameter."""
+    result = await generate_message(_composition(), provider=_mock_provider())
+    # _mock_llm_response returns model_id="claude-haiku-4-5"
+    assert result.model_used == "claude-haiku-4-5"
+
+
+@pytest.mark.asyncio
+async def test_generate_message_provider_receives_provider_model_id() -> None:
+    """When a provider is injected, generate() should be called with
+    the provider's own model_id, not DEFAULT_MODEL."""
+    mock = _mock_provider()
+    mock.model_id = "claude-haiku-4-5"
+    await generate_message(_composition(), provider=mock)
+    call_kwargs = mock.generate.call_args
+    assert call_kwargs.kwargs.get("model") == "claude-haiku-4-5"
