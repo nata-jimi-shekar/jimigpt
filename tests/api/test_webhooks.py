@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 from src.api.webhooks import (
     TERMINAL_FAILURE_STATUSES,
     TERMINAL_SUCCESS_STATUSES,
+    get_delivery_channel,
     get_delivery_status,
     reset_status_store,
     verify_twilio_signature,
@@ -208,3 +209,118 @@ def test_valid_signature_allows_request(client_with_sig: TestClient) -> None:
 
     assert response.status_code == 200
     assert get_delivery_status("SM_valid") == "delivered"
+
+
+# ---------------------------------------------------------------------------
+# Channel detection from From field
+# ---------------------------------------------------------------------------
+
+
+def test_webhook_plain_from_field_detects_sms_channel(
+    client_no_sig: TestClient,
+) -> None:
+    """Plain phone number in From field → channel recorded as 'sms'."""
+    client_no_sig.post(
+        "/api/v1/webhooks/twilio",
+        data={
+            "MessageSid": "SM_sms_ch",
+            "MessageStatus": "delivered",
+            "From": "+15550001111",
+        },
+    )
+    assert get_delivery_channel("SM_sms_ch") == "sms"
+
+
+def test_webhook_whatsapp_from_field_detects_whatsapp_channel(
+    client_no_sig: TestClient,
+) -> None:
+    """'whatsapp:' prefix in From field → channel recorded as 'whatsapp'."""
+    client_no_sig.post(
+        "/api/v1/webhooks/twilio",
+        data={
+            "MessageSid": "WA_ch_001",
+            "MessageStatus": "delivered",
+            "From": "whatsapp:+14155238886",
+        },
+    )
+    assert get_delivery_channel("WA_ch_001") == "whatsapp"
+
+
+def test_webhook_no_from_field_defaults_to_sms(client_no_sig: TestClient) -> None:
+    """Missing From field defaults channel to 'sms'."""
+    client_no_sig.post(
+        "/api/v1/webhooks/twilio",
+        data={"MessageSid": "SM_nofrom", "MessageStatus": "delivered"},
+    )
+    assert get_delivery_channel("SM_nofrom") == "sms"
+
+
+def test_get_delivery_channel_returns_none_for_unknown_sid() -> None:
+    assert get_delivery_channel("SM_does_not_exist") is None
+
+
+# ---------------------------------------------------------------------------
+# WhatsApp status updates
+# ---------------------------------------------------------------------------
+
+
+def test_webhook_whatsapp_delivered_updates_status(
+    client_no_sig: TestClient,
+) -> None:
+    """WhatsApp 'delivered' callback records status correctly."""
+    response = client_no_sig.post(
+        "/api/v1/webhooks/twilio",
+        data={
+            "MessageSid": "WA_del_001",
+            "MessageStatus": "delivered",
+            "To": "whatsapp:+573001234567",
+            "From": "whatsapp:+14155238886",
+            "AccountSid": "ACtest",
+        },
+    )
+    assert response.status_code == 200
+    assert get_delivery_status("WA_del_001") == "delivered"
+    assert get_delivery_channel("WA_del_001") == "whatsapp"
+
+
+def test_webhook_whatsapp_failed_updates_status(client_no_sig: TestClient) -> None:
+    """WhatsApp 'failed' callback records status and channel correctly."""
+    response = client_no_sig.post(
+        "/api/v1/webhooks/twilio",
+        data={
+            "MessageSid": "WA_fail_001",
+            "MessageStatus": "failed",
+            "From": "whatsapp:+14155238886",
+        },
+    )
+    assert response.status_code == 200
+    assert get_delivery_status("WA_fail_001") == "failed"
+    assert get_delivery_channel("WA_fail_001") == "whatsapp"
+
+
+def test_webhook_response_includes_channel(client_no_sig: TestClient) -> None:
+    """Response body includes the detected channel."""
+    response = client_no_sig.post(
+        "/api/v1/webhooks/twilio",
+        data={
+            "MessageSid": "WA_resp",
+            "MessageStatus": "delivered",
+            "From": "whatsapp:+14155238886",
+        },
+    )
+    body = response.json()
+    assert body["channel"] == "whatsapp"
+
+
+def test_webhook_sms_response_includes_sms_channel(
+    client_no_sig: TestClient,
+) -> None:
+    response = client_no_sig.post(
+        "/api/v1/webhooks/twilio",
+        data={
+            "MessageSid": "SM_resp",
+            "MessageStatus": "delivered",
+            "From": "+15550001111",
+        },
+    )
+    assert response.json()["channel"] == "sms"
