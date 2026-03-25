@@ -34,10 +34,15 @@ class DeliveryRequest(BaseModel):
 
 
 class DeliveryResult(BaseModel):
-    """Outcome of one delivery attempt."""
+    """Outcome of one delivery attempt (or all retry attempts combined)."""
 
     success: bool
     channel: DeliveryChannel
     delivered_at: datetime | None = None
     external_id: str | None = None  # Twilio SID, push notification ID, etc.
     error: str | None = None
+
+    # Retry tracking — updated by deliver_with_retry(); default 1 for direct
+    # send_sms() calls (no retry wrapper).
+    attempts: int = 1
+    last_attempt_at: datetime | None = None
