@@ -110,10 +110,69 @@ Move to config/YAML in Phase 2 for entity-agnostic support (NeuroAmigo).
 
 ---
 
+### 8. log_generation is synchronous — may slow generation at scale
+
+**Feature:** R01 | **Source:** Opus R01 review, Important #2
+**File:** src/messaging/generator.py:145
+**Priority:** Low — in-memory store is fast; only matters with DB persistence
+
+`log_generation()` is called synchronously (fire-and-forget via try/except).
+Currently appends to in-memory list which is trivially fast. When F05 adds
+database persistence, this should become a background task (asyncio.create_task
+or queue) to avoid adding latency to message generation.
+
+**Fix:** Move to `asyncio.create_task()` when log_generation becomes async in F05.
+
+---
+
+### 9. _default_provider in generator.py duplicates routing logic
+
+**Feature:** R01 | **Source:** Opus R01 review, Important #3
+**File:** src/messaging/generator.py:65
+**Priority:** Medium — address when routing is fully wired
+
+`_default_provider()` builds an ad-hoc ModelConfig + RoutingDecision. This
+duplicates logic that should come from routing.py's `get_provider()`. Kept for
+backward compatibility during R01 transition.
+
+**Fix:** Wire `get_provider("default")` as the fallback in generate_message()
+once all callers pass an explicit provider.
+
+---
+
+### 10. Fingerprint compare_fingerprints normalizes by hardcoded ranges
+
+**Feature:** R01 | **Source:** Opus R01 review, Important #4
+**File:** src/shared/fingerprint.py
+**Priority:** Low — acceptable for Phase 1
+
+`compare_fingerprints()` uses hardcoded normalization ranges (e.g., max
+exclamation_rate=5.0). If real data exceeds these ranges, drift scores
+compress. Move ranges to config when fingerprinting is used in production.
+
+**Fix:** Move normalization ranges to config/fingerprint.yaml in Phase 2.
+
+---
+
+### 11. AnthropicProvider._GENERATE_TRIGGER duplicated in generator.py
+
+**Feature:** R01 | **Source:** Opus R01 review, Important #5
+**File:** src/shared/llm.py:98, src/messaging/generator.py:37
+**Priority:** Low — cosmetic
+
+The trigger string "Please generate the message now." is defined in both files.
+Single source of truth would be cleaner.
+
+**Fix:** Remove from one location and import from the other, or move to a shared
+constant. Address opportunistically during next generator.py change.
+
+---
+
 ## Completed Items
 
 | # | Feature | Issue | Resolution | Date |
 |---|---------|-------|-----------|------|
+| R01-OC1 | R01 | model_id not on BaseProvider interface | Abstract property on BaseProvider; all subclasses implement | 2026-03-24 |
 | R01-C1 | R01 | generator overrides routing-selected model | Use provider's model_id; record from LLMResponse | 2026-03-24 |
 | R01-C2 | R01 | _default_provider uses Haiku pricing for Sonnet | Centralized MODEL_COSTS in llm.py | 2026-03-24 |
 | R01-I1 | R01 | Malformed provider strings silently fall back | _parse_provider_string raises InvalidRoutingConfig | 2026-03-24 |

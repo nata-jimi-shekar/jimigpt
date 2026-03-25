@@ -98,7 +98,7 @@ async def generate_message(
     """
     if provider is not None:
         _provider = provider
-        _model = getattr(provider, "model_id", model)
+        _model = provider.model_id
     else:
         _provider = _default_provider(model)
         _model = model

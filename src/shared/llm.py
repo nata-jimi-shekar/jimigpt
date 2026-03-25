@@ -80,6 +80,12 @@ class GenerationError(Exception):
 class BaseProvider(ABC):
     """Abstract base for all LLM providers."""
 
+    @property
+    @abstractmethod
+    def model_id(self) -> str:
+        """The model identifier this provider is configured to use."""
+        ...
+
     @abstractmethod
     async def generate(
         self,
@@ -103,8 +109,12 @@ class AnthropicProvider(BaseProvider):
         routing_decision: RoutingDecision,
     ) -> None:
         self._model_config = model_config
-        self.model_id = model_config.model_id
+        self._model_id = model_config.model_id
         self._routing_decision = routing_decision
+
+    @property
+    def model_id(self) -> str:
+        return self._model_id
 
     async def generate(
         self,
@@ -165,6 +175,11 @@ class OpenAIProvider(BaseProvider):
 
     def __init__(self, routing_decision: RoutingDecision) -> None:
         self._routing_decision = routing_decision
+        self._model_id = routing_decision.selected_model.model_id
+
+    @property
+    def model_id(self) -> str:
+        return self._model_id
 
     async def generate(
         self,
@@ -186,6 +201,11 @@ class LocalProvider(BaseProvider):
 
     def __init__(self, routing_decision: RoutingDecision) -> None:
         self._routing_decision = routing_decision
+        self._model_id = routing_decision.selected_model.model_id
+
+    @property
+    def model_id(self) -> str:
+        return self._model_id
 
     async def generate(
         self,
@@ -213,7 +233,12 @@ class CachedProvider(BaseProvider):
         message_pool: list[str] | None = None,
     ) -> None:
         self._routing_decision = routing_decision
+        self._model_id = routing_decision.selected_model.model_id
         self._pool: list[str] = message_pool or []
+
+    @property
+    def model_id(self) -> str:
+        return self._model_id
 
     async def generate(
         self,

@@ -169,6 +169,8 @@ class TestBaseProvider:
         """A fully implemented subclass can be instantiated."""
 
         class ConcreteProvider(BaseProvider):
+            model_id: str = "test-model"
+
             async def generate(
                 self,
                 system_prompt: str,
@@ -181,3 +183,26 @@ class TestBaseProvider:
 
         provider = ConcreteProvider()
         assert provider is not None
+
+    def test_model_id_is_required_on_base_provider(self) -> None:
+        """Every provider subclass must expose model_id."""
+        from src.shared.llm import AnthropicProvider, CachedProvider, LocalProvider, OpenAIProvider
+
+        # All concrete providers must have model_id as an attribute
+        assert hasattr(BaseProvider, "model_id"), "BaseProvider must declare model_id"
+
+        # Check that model_id is an abstract property
+        # (subclass without it should fail to instantiate)
+        class MissingModelId(BaseProvider):
+            async def generate(
+                self,
+                system_prompt: str,
+                user_message: str,
+                *,
+                model: str,
+                max_tokens: int,
+            ) -> LLMResponse:
+                raise NotImplementedError
+
+        with pytest.raises(TypeError):
+            MissingModelId()  # type: ignore[abstract]
