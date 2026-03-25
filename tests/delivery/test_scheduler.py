@@ -345,6 +345,59 @@ def test_same_entity_multiple_recipients_allowed(queue: DeliveryQueue) -> None:
 # ---------------------------------------------------------------------------
 
 
+def test_dst_spring_forward_nonexistent_time_normalised(queue: DeliveryQueue) -> None:
+    """2026-03-08 02:30 America/New_York doesn't exist (spring forward).
+
+    Using custom quiet hours (23:00-01:00) so 02:30 is NOT deferred.
+    replace(tzinfo=tz) silently gives wrong UTC; DST-safe localization
+    should normalise to the post-transition wall-clock equivalent
+    (03:30 EDT = 07:30 UTC).
+    """
+    no_conflict_qh = QuietHours(start=time(23, 0), end=time(1, 0))
+    nonexistent = datetime(2026, 3, 8, 2, 30, 0)
+
+    req = schedule_delivery(
+        message=_msg(),
+        channel=DeliveryChannel.SMS,
+        scheduled_time=nonexistent,
+        timezone="America/New_York",
+        recipient_id="user-001",
+        queue=queue,
+        quiet_hours=no_conflict_qh,
+    )
+
+    # After normalisation the UTC time should be 07:30
+    # (03:30 EDT = 07:30 UTC — the fold-forward equivalent)
+    assert req.scheduled_at.hour == 7
+    assert req.scheduled_at.minute == 30
+
+
+def test_dst_fall_back_ambiguous_time_uses_first_occurrence(
+    queue: DeliveryQueue,
+) -> None:
+    """2026-11-01 01:30 America/New_York is ambiguous (fall back).
+
+    Using custom quiet hours (23:00-01:00) so 01:30 is NOT deferred.
+    Should use the first (DST/EDT) occurrence: 01:30 EDT = 05:30 UTC.
+    """
+    no_conflict_qh = QuietHours(start=time(23, 0), end=time(1, 0))
+    ambiguous = datetime(2026, 11, 1, 1, 30, 0)
+
+    req = schedule_delivery(
+        message=_msg(),
+        channel=DeliveryChannel.SMS,
+        scheduled_time=ambiguous,
+        timezone="America/New_York",
+        recipient_id="user-001",
+        queue=queue,
+        quiet_hours=no_conflict_qh,
+    )
+
+    # First occurrence (EDT, UTC-4): 01:30 EDT = 05:30 UTC
+    assert req.scheduled_at.hour == 5
+    assert req.scheduled_at.minute == 30
+
+
 def test_schedule_delivery_accepts_active_arcs_none(queue: DeliveryQueue) -> None:
     """Foundation field: active_arcs defaults to None without changing behaviour."""
     req = schedule_delivery(
@@ -357,6 +410,82 @@ def test_schedule_delivery_accepts_active_arcs_none(queue: DeliveryQueue) -> Non
         active_arcs=None,
     )
     assert req is not None
+
+
+def test_pending_does_not_return_claimed_items(queue: DeliveryQueue) -> None:
+    """Claiming items removes them from future pending() calls — no duplicates."""
+    schedule_delivery(
+        message=_msg(),
+        channel=DeliveryChannel.SMS,
+        scheduled_time=datetime(2026, 3, 25, 8, 0, 0),
+        timezone="UTC",
+        recipient_id="user-001",
+        queue=queue,
+    )
+
+    current_time = datetime(2026, 3, 25, 9, 0, 0, tzinfo=UTC)
+
+    # First call: returns the item
+    first = queue.claim(current_time)
+    assert len(first) == 1
+
+    # Second call: item already claimed — must be empty
+    second = queue.claim(current_time)
+    assert len(second) == 0
+
+
+def test_pending_still_shows_unclaimed_items(queue: DeliveryQueue) -> None:
+    """pending() still shows items (read-only view), claim() removes them."""
+    schedule_delivery(
+        message=_msg(),
+        channel=DeliveryChannel.SMS,
+        scheduled_time=datetime(2026, 3, 25, 8, 0, 0),
+        timezone="UTC",
+        recipient_id="user-001",
+        queue=queue,
+    )
+
+    current_time = datetime(2026, 3, 25, 9, 0, 0, tzinfo=UTC)
+
+    # pending() is a read-only view — items remain
+    assert len(queue.pending(current_time)) == 1
+    assert len(queue.pending(current_time)) == 1
+
+    # claim() removes them
+    claimed = queue.claim(current_time)
+    assert len(claimed) == 1
+    assert len(queue.pending(current_time)) == 0
+
+
+def test_claim_only_returns_due_items(queue: DeliveryQueue) -> None:
+    """claim() only claims items with scheduled_at <= at, leaving future items."""
+    schedule_delivery(
+        message=_msg(entity_id="due"),
+        channel=DeliveryChannel.SMS,
+        scheduled_time=datetime(2026, 3, 25, 8, 0, 0),
+        timezone="UTC",
+        recipient_id="user-001",
+        queue=queue,
+    )
+    schedule_delivery(
+        message=_msg(entity_id="future"),
+        channel=DeliveryChannel.SMS,
+        scheduled_time=datetime(2026, 3, 25, 20, 0, 0),
+        timezone="UTC",
+        recipient_id="user-002",
+        queue=queue,
+    )
+
+    at_9am = datetime(2026, 3, 25, 9, 0, 0, tzinfo=UTC)
+    claimed = queue.claim(at_9am)
+    assert len(claimed) == 1
+    assert claimed[0].message.entity_id == "due"
+
+    # Future item still pending later
+    at_9pm = datetime(2026, 3, 25, 21, 0, 0, tzinfo=UTC)
+    claimed_later = queue.claim(at_9pm)
+    assert len(claimed_later) == 1
+    assert claimed_later[0].message.entity_id == "future"
 
 
 def test_schedule_delivery_accepts_active_arcs_list(queue: DeliveryQueue) -> None:

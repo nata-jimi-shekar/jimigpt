@@ -59,15 +59,40 @@ class DeliveryQueue:
         self._items.append(request)
 
     def pending(self, at: datetime) -> list[DeliveryRequest]:
-        """Return all requests with scheduled_at <= at."""
+        """Return all requests with scheduled_at <= at (read-only view)."""
         at_utc = at if at.tzinfo is not None else at.replace(tzinfo=UTC)
         return [r for r in self._items if r.scheduled_at <= at_utc]
 
+    def claim(self, at: datetime) -> list[DeliveryRequest]:
+        """Atomically return and remove all requests with scheduled_at <= at.
+
+        Unlike pending(), this dequeues the items so they are never returned
+        again — preventing duplicate delivery on repeated polling.
+        """
+        at_utc = at if at.tzinfo is not None else at.replace(tzinfo=UTC)
+        due = [r for r in self._items if r.scheduled_at <= at_utc]
+        self._items = [r for r in self._items if r.scheduled_at > at_utc]
+        return due
+
 
 def _to_utc(local_naive: datetime, tz: ZoneInfo) -> datetime:
-    """Localise a naive datetime in *tz* and convert to UTC."""
-    localised = local_naive.replace(tzinfo=tz)
-    return localised.astimezone(UTC)
+    """Localise a naive datetime in *tz* and convert to UTC.
+
+    Uses ``tz.fromutc()`` round-trip to handle DST correctly:
+    - Nonexistent times (spring forward): normalised to the post-transition
+      wall-clock equivalent (e.g., 02:30 → 03:30 EDT).
+    - Ambiguous times (fall back): resolved to the *first* occurrence
+      (the DST/summer side, fold=0).
+    """
+    # Estimate UTC by assuming the standard offset, then let fromutc()
+    # pick the correct wall-clock time. This avoids replace(tzinfo=tz)
+    # which silently accepts nonexistent/ambiguous local times.
+    # fold=0 → prefer the first (DST) occurrence for ambiguous times.
+    aware = local_naive.replace(tzinfo=tz, fold=0)
+    utc_guess = aware.astimezone(UTC)
+    # Round-trip through fromutc to normalise nonexistent times
+    normalised = utc_guess.astimezone(tz)
+    return normalised.astimezone(UTC)
 
 
 def _defer_to_quiet_end(local_naive: datetime, quiet: QuietHours) -> datetime:

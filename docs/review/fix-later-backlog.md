@@ -75,6 +75,53 @@ load time. Address when tone rules become user-configurable.
 
 ---
 
+### 12. Webhook signature verification has no direct test coverage
+
+**Feature:** F03 | **Source:** Codex F03 review, Important Issue #3
+**File:** tests/delivery/test_integration.py:55
+**Priority:** High — fix before production deployment
+
+Integration tests override `verify_twilio_signature` via dependency_overrides,
+so the real signature validation path (valid signatures, invalid signatures, URL
+reconstruction) has zero regression protection.
+
+**Fix:** Add focused webhook tests that exercise the real `verify_twilio_signature`
+dependency with mocked `RequestValidator`. Test valid, invalid, and missing
+signature scenarios.
+
+---
+
+### 13. Pydantic delivery models do not enable strict mode
+
+**Feature:** F03 | **Source:** Codex F03 review, Important Issue #6
+**Files:** src/delivery/models.py
+**Priority:** Medium — architecture drift
+
+`docs/category-architecture.md:41` says "Pydantic v2 (strict mode, all models
+validated)" but reviewed Pydantic models do not set `model_config =
+ConfigDict(strict=True)`. Coercion can happen where docs say it should not.
+
+**Fix:** Audit all Pydantic models across the codebase and add strict mode
+where required by architecture. Address as a focused sweep rather than
+per-feature.
+
+---
+
+### 14. WhatsApp webhook edge cases untested
+
+**Feature:** F03 | **Source:** Codex F03 review, Important Issue #7
+**Files:** tests/delivery/test_whatsapp.py
+**Priority:** Medium
+
+No tests for malformed `From` values in the webhook, or invalid/missing
+signature headers. The double-prefix bug was fixed (Important #1), but
+broader edge-case coverage is still thin.
+
+**Fix:** Add webhook tests for malformed From values (empty, missing prefix,
+garbage), and security edge cases alongside backlog item #12.
+
+---
+
 ## Watch Items (Not Bugs — Monitor for Future Action)
 
 ### 5. Circular import between generator ↔ quality ↔ generation_log

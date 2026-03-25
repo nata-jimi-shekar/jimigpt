@@ -89,10 +89,16 @@ def send_whatsapp(to: str, body: str) -> DeliveryResult:
     Never raises — all errors are captured in DeliveryResult.error.
     """
     _validate_inputs(to, body)
+    wa_to = to if to.startswith("whatsapp:") else f"whatsapp:{to}"
+    wa_from = (
+        _settings.twilio_whatsapp_from
+        if _settings.twilio_whatsapp_from.startswith("whatsapp:")
+        else f"whatsapp:{_settings.twilio_whatsapp_from}"
+    )
     try:
         message = _twilio_client().messages.create(
-            to=f"whatsapp:{to}",
-            from_=f"whatsapp:{_settings.twilio_whatsapp_from}",
+            to=wa_to,
+            from_=wa_from,
             body=body,
         )
         return DeliveryResult(
