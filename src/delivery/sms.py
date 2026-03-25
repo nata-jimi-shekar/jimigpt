@@ -1,8 +1,8 @@
-"""Twilio SMS delivery client.
+"""Twilio delivery client — SMS and WhatsApp.
 
-Wraps the Twilio REST client with error handling and returns a DeliveryResult.
-All external SMS sends go through send_sms() — never call Twilio directly.
-For reliable delivery, use deliver_with_retry() which adds exponential backoff.
+All outbound messages go through send_sms(), send_whatsapp(), or the unified
+send_message() router. For reliable delivery use deliver_with_retry(), which
+adds exponential backoff and auto-selects the channel from the DeliveryRequest.
 """
 
 from __future__ import annotations
@@ -36,20 +36,26 @@ def _twilio_client() -> Client:
     return Client(_settings.twilio_account_sid, _settings.twilio_auth_token)
 
 
-def send_sms(to: str, body: str) -> DeliveryResult:
-    """Send an SMS via Twilio and return a DeliveryResult.
-
-    Validates inputs, calls Twilio, and maps success/failure to DeliveryResult.
-    Never raises — all errors are captured in DeliveryResult.error.
-    """
+def _validate_inputs(to: str, body: str) -> None:
     if not to or not _E164_RE.match(to):
         raise ValueError(f"Invalid phone number: {to!r}. Must be E.164 format.")
     if not body:
         raise ValueError("Message body must not be empty.")
 
+
+# ---------------------------------------------------------------------------
+# SMS
+# ---------------------------------------------------------------------------
+
+
+def send_sms(to: str, body: str) -> DeliveryResult:
+    """Send an SMS via Twilio and return a DeliveryResult.
+
+    Never raises — all errors are captured in DeliveryResult.error.
+    """
+    _validate_inputs(to, body)
     try:
-        client = _twilio_client()
-        message = client.messages.create(
+        message = _twilio_client().messages.create(
             to=to,
             from_=_settings.twilio_phone_number,
             body=body,
@@ -59,24 +65,67 @@ def send_sms(to: str, body: str) -> DeliveryResult:
             channel=DeliveryChannel.SMS,
             delivered_at=datetime.now(tz=UTC),
             external_id=message.sid,
-            error=None,
         )
     except TwilioRestException as exc:
         return DeliveryResult(
-            success=False,
-            channel=DeliveryChannel.SMS,
-            delivered_at=None,
-            external_id=None,
-            error=str(exc),
+            success=False, channel=DeliveryChannel.SMS, error=str(exc)
         )
     except Exception as exc:  # noqa: BLE001
         return DeliveryResult(
-            success=False,
-            channel=DeliveryChannel.SMS,
-            delivered_at=None,
-            external_id=None,
+            success=False, channel=DeliveryChannel.SMS,
             error=f"Unexpected error: {exc}",
         )
+
+
+# ---------------------------------------------------------------------------
+# WhatsApp
+# ---------------------------------------------------------------------------
+
+
+def send_whatsapp(to: str, body: str) -> DeliveryResult:
+    """Send a WhatsApp message via Twilio.
+
+    Same Twilio API as SMS — only the 'whatsapp:' prefix on to/from differs.
+    Never raises — all errors are captured in DeliveryResult.error.
+    """
+    _validate_inputs(to, body)
+    try:
+        message = _twilio_client().messages.create(
+            to=f"whatsapp:{to}",
+            from_=f"whatsapp:{_settings.twilio_whatsapp_from}",
+            body=body,
+        )
+        return DeliveryResult(
+            success=True,
+            channel=DeliveryChannel.WHATSAPP,
+            delivered_at=datetime.now(tz=UTC),
+            external_id=message.sid,
+        )
+    except TwilioRestException as exc:
+        return DeliveryResult(
+            success=False, channel=DeliveryChannel.WHATSAPP, error=str(exc)
+        )
+    except Exception as exc:  # noqa: BLE001
+        return DeliveryResult(
+            success=False, channel=DeliveryChannel.WHATSAPP,
+            error=f"Unexpected error: {exc}",
+        )
+
+
+# ---------------------------------------------------------------------------
+# Unified channel router
+# ---------------------------------------------------------------------------
+
+
+def send_message(to: str, body: str, channel: DeliveryChannel) -> DeliveryResult:
+    """Route a message to the correct channel sender."""
+    match channel:
+        case DeliveryChannel.SMS:
+            return send_sms(to, body)
+        case DeliveryChannel.WHATSAPP:
+            return send_whatsapp(to, body)
+        case _:
+            raise ValueError(f"Unsupported delivery channel: {channel}")
 
 
 # ---------------------------------------------------------------------------
@@ -90,31 +139,39 @@ _SleepFn = Callable[[float], None]
 def deliver_with_retry(
     request: DeliveryRequest,
     *,
-    _send_fn: _SendFn = send_sms,
+    _send_fn: _SendFn | None = None,  # None = auto-select by channel
     _sleep_fn: _SleepFn = _time.sleep,
 ) -> DeliveryResult:
-    """Deliver an SMS with exponential backoff retry (up to MAX_ATTEMPTS).
+    """Deliver a message with exponential backoff retry (up to MAX_ATTEMPTS).
 
     Attempts:  1 (immediate) → sleep delay[0] → 2 → sleep delay[1] → 3
-    Delays:    60 s, 300 s  (15 min delay is defined but unused at 3 attempts)
+    Delays:    60 s, 300 s  (15 min slot defined but unused at 3 attempts)
 
-    ``_send_fn`` and ``_sleep_fn`` are injectable for testing — pass no-op
-    lambdas to skip real network calls and real sleeps in unit tests.
+    When ``_send_fn`` is None the channel is read from ``request.channel``
+    and the appropriate sender (send_sms / send_whatsapp) is selected
+    automatically. Passing an explicit ``_send_fn`` overrides this — all
+    existing tests that inject their own function continue to work unchanged.
 
     Raises:
-        ValueError: if ``request.recipient_phone`` is missing or invalid
+        ValueError: if ``request.recipient_phone`` is missing
                     (raised immediately, before any attempt).
     """
     phone = request.recipient_phone
     if not phone:
-        raise ValueError("DeliveryRequest.recipient_phone is required for SMS delivery.")
+        raise ValueError("DeliveryRequest.recipient_phone is required for delivery.")
+
+    effective_send: _SendFn
+    if _send_fn is not None:
+        effective_send = _send_fn
+    else:
+        effective_send = lambda to, body: send_message(to, body, request.channel)  # noqa: E731
 
     body = request.message.content
     last_result: DeliveryResult | None = None
 
     for attempt in range(1, MAX_ATTEMPTS + 1):
         now = datetime.now(tz=UTC)
-        result = _send_fn(phone, body)
+        result = effective_send(phone, body)
         last_result = result.model_copy(
             update={"attempts": attempt, "last_attempt_at": now}
         )
@@ -122,10 +179,8 @@ def deliver_with_retry(
         if last_result.success:
             return last_result
 
-        # Sleep before retry — but not after the final attempt
         if attempt < MAX_ATTEMPTS:
             _sleep_fn(RETRY_DELAYS[attempt - 1])
 
-    # All attempts exhausted — return the last failure result
-    assert last_result is not None  # always set after ≥1 loop iteration
+    assert last_result is not None
     return last_result

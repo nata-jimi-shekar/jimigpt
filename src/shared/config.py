@@ -20,7 +20,8 @@ class Settings(BaseSettings):
     # Twilio
     twilio_account_sid: str = ""
     twilio_auth_token: str = ""
-    twilio_phone_number: str = ""
+    twilio_phone_number: str = ""       # SMS sender number
+    twilio_whatsapp_from: str = ""      # WhatsApp sender number (e.g. +14155238886)
 
     # Supabase
     supabase_url: str = ""
