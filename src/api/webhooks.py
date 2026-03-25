@@ -111,7 +111,8 @@ async def twilio_status_callback(
     Twilio POSTs here whenever a message status changes. The `From` field
     identifies the channel: WhatsApp senders carry a "whatsapp:" prefix.
 
-    Always returns 200 so Twilio does not retry.
+    Returns 200 on success. Signature validation failures return 403;
+    missing required headers/fields return 422 (FastAPI default).
     """
     channel = _detect_channel(from_number)
     _status_store[message_sid] = _StatusRecord(status=message_status, channel=channel)

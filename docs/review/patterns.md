@@ -12,6 +12,9 @@
 | Pattern | First Seen | Times Seen | Source | Status |
 |---------|------------|------------|--------|--------|
 | _example: Missing edge case tests for None/empty inputs_ | _F01-codex_ | _1_ | _Codex_ | _Monitoring_ |
+| In-memory Phase 1 infrastructure needs explicit state-transition tests — placeholder impls can violate production semantics | F03-codex | 1 | Codex | Fixed (queue claim) |
+| Security dependencies bypassed in integration tests without companion direct tests for the real security path | F03-codex | 1 | Codex | Backlog (#12) |
+| Architecture says "strict mode" but Pydantic models don't consistently enforce it | F03-codex | 1 | Codex | Backlog (#13) |
 
 ### Message Quality Patterns
 | Pattern | First Seen | Times Seen | Source | Status |

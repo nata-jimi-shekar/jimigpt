@@ -93,6 +93,22 @@ def test_send_whatsapp_prefixes_from_number(mock_client_cls: MagicMock) -> None:
 
 
 @patch("src.delivery.sms.Client")
+def test_send_whatsapp_already_prefixed_to_no_double_prefix(
+    mock_client_cls: MagicMock,
+) -> None:
+    """Already-prefixed 'whatsapp:+...' to number must NOT get double-prefixed."""
+    mock_message = MagicMock()
+    mock_message.sid = "WA_no_dupe"
+    mock_client_cls.return_value.messages.create.return_value = mock_message
+
+    send_whatsapp(to="+573001234567", body="Test")  # plain number
+
+    call_kwargs = mock_client_cls.return_value.messages.create.call_args.kwargs
+    assert call_kwargs["to"] == "whatsapp:+573001234567"
+    assert not call_kwargs["to"].startswith("whatsapp:whatsapp:")
+
+
+@patch("src.delivery.sms.Client")
 def test_send_whatsapp_twilio_error_returns_failure(
     mock_client_cls: MagicMock,
 ) -> None:
