@@ -27,6 +27,10 @@ from src.shared.llm import (
 _CONFIG_PATH = Path(__file__).parent.parent.parent / "config" / "llm_routing.yaml"
 
 
+class InvalidRoutingConfig(Exception):
+    """Raised when a routing config value is malformed."""
+
+
 class RoutingConfig(BaseModel):
     """One routing rule from llm_routing.yaml."""
 
@@ -42,8 +46,23 @@ def load_routing_config() -> dict[str, Any]:
 
 
 def _parse_provider_string(provider_str: str) -> tuple[str, str]:
-    """Parse 'provider:model_id' into (provider, model_id)."""
+    """Parse 'provider:model_id' into (provider, model_id).
+
+    Raises InvalidRoutingConfig for missing colon, empty provider, or empty model_id.
+    """
+    if ":" not in provider_str:
+        raise InvalidRoutingConfig(
+            f"Invalid provider string {provider_str!r}: expected 'provider:model_id'"
+        )
     provider, _, model_id = provider_str.partition(":")
+    if not provider:
+        raise InvalidRoutingConfig(
+            f"Empty provider name in {provider_str!r}"
+        )
+    if not model_id:
+        raise InvalidRoutingConfig(
+            f"Empty model_id in {provider_str!r}"
+        )
     return provider, model_id
 
 

@@ -207,8 +207,19 @@ def extract_fingerprint(
 def compare_fingerprints(
     a: PersonalityFingerprint,
     b: PersonalityFingerprint,
+    *,
+    allow_cross_archetype: bool = False,
 ) -> DriftDetection:
-    """Compute drift between two fingerprints for the same archetype."""
+    """Compute drift between two fingerprints for the same archetype.
+
+    Raises ValueError if archetypes differ, unless allow_cross_archetype=True.
+    """
+    if not allow_cross_archetype and a.archetype_id != b.archetype_id:
+        raise ValueError(
+            f"Cannot compare fingerprints for different archetypes: "
+            f"{a.archetype_id!r} vs {b.archetype_id!r}. "
+            f"Pass allow_cross_archetype=True to override."
+        )
     features = list(_FEATURE_RANGES.keys())
     diffs: dict[str, float] = {}
 

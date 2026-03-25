@@ -87,10 +87,13 @@ def log_generation(
 
     Phase 1: appends to in-memory list. Phase 2 / F05: writes to DB.
     """
+    _recipient_id = recipient_id if recipient_id is not None else getattr(
+        composition, "recipient_id", None
+    )
     record = MessageGenerationLog(
         entity_id=composition.entity_voice.entity_id,
         archetype_id=composition.entity_voice.primary_archetype,
-        recipient_id=recipient_id,
+        recipient_id=_recipient_id,
         composition_snapshot=composition.model_dump(mode="json"),
         prompt_text=prompt_text,
         prompt_tokens=generated.prompt_tokens,

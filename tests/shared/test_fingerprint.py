@@ -228,3 +228,61 @@ class TestCompareFingerprints:
         fp_b = _make_fp(energy=0.1)
         result = compare_fingerprints(fp_a, fp_b)
         assert "energy_proxy" in result.dimensions_drifted
+
+    # --- Issue #3: cross-archetype guard ---
+
+    def test_cross_archetype_comparison_raises_by_default(self) -> None:
+        fp_a = _make_fp(archetype="chaos_gremlin")
+        fp_b = _make_fp(archetype="loyal_shadow")
+        with pytest.raises(ValueError, match="archetype"):
+            compare_fingerprints(fp_a, fp_b)
+
+    def test_cross_archetype_allowed_with_flag(self) -> None:
+        fp_a = _make_fp(archetype="chaos_gremlin")
+        fp_b = _make_fp(archetype="loyal_shadow")
+        result = compare_fingerprints(fp_a, fp_b, allow_cross_archetype=True)
+        assert isinstance(result, DriftDetection)
+
+    # --- Issue #6: exact alert threshold boundary tests ---
+
+    def test_alert_level_boundary_below_0_1_is_none(self) -> None:
+        fp_a = _make_fp()
+        # Tiny difference — drift_score well below 0.1
+        fp_b = _make_fp(energy=0.52)
+        result = compare_fingerprints(fp_a, fp_b)
+        assert result.alert_level == "none"
+
+    def test_alert_level_boundary_at_0_1_is_notice(self) -> None:
+        # All features differ by exactly 0.1 of their range → drift = 0.1
+        fp_a = _make_fp(
+            energy=0.0, warmth=0.0, humor=0.0,
+            exclamation_rate=0.0, emoji_rate=0.0, caps_word_rate=0.0,
+            question_rate=0.0, avg_message_length=0.0,
+            avg_sentence_length=0.0, vocabulary_diversity=0.0,
+        )
+        fp_b = _make_fp(
+            energy=0.1, warmth=0.1, humor=0.1,
+            exclamation_rate=0.5, emoji_rate=0.5, caps_word_rate=0.3,
+            question_rate=0.3, avg_message_length=20.0,
+            avg_sentence_length=3.0, vocabulary_diversity=0.1,
+        )
+        result = compare_fingerprints(fp_a, fp_b)
+        assert result.alert_level == "notice"
+
+    def test_alert_level_boundary_at_0_4_is_critical(self) -> None:
+        # Large differences across all features
+        fp_a = _make_fp(
+            energy=0.0, warmth=0.0, humor=0.0,
+            exclamation_rate=0.0, emoji_rate=0.0, caps_word_rate=0.0,
+            question_rate=0.0, avg_message_length=0.0,
+            avg_sentence_length=0.0, vocabulary_diversity=0.0,
+        )
+        fp_b = _make_fp(
+            energy=1.0, warmth=1.0, humor=1.0,
+            exclamation_rate=5.0, emoji_rate=5.0, caps_word_rate=3.0,
+            question_rate=3.0, avg_message_length=200.0,
+            avg_sentence_length=30.0, vocabulary_diversity=1.0,
+        )
+        result = compare_fingerprints(fp_a, fp_b)
+        assert result.drift_score >= 0.4
+        assert result.alert_level == "critical"

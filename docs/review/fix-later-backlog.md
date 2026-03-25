@@ -75,8 +75,50 @@ load time. Address when tone rules become user-configurable.
 
 ---
 
+## Watch Items (Not Bugs — Monitor for Future Action)
+
+### 5. Circular import between generator ↔ quality ↔ generation_log
+
+**Feature:** R01 | **Source:** Codex R01 review, Observation
+**Files:** src/messaging/generator.py, src/messaging/quality.py, src/shared/generation_log.py
+**Priority:** Low — working correctly, cosmetic concern
+
+TYPE_CHECKING + lazy import is pragmatic. A structural fix (extracting
+GeneratedMessage to its own module) would be cleaner but requires touching
+many test files. Consider during a future refactor if the cycle grows.
+
+---
+
+### 6. Quality gate hardcoded in generator.py
+
+**Feature:** R01 | **Source:** Codex R01 review, Observation
+**File:** src/messaging/generator.py:125
+**Priority:** Medium — address in F03
+
+Uses 4 fixed checks (LENGTH, SAFETY, CHARACTER_CONSISTENCY, FORBIDDEN_PHRASES).
+Should become configurable in F03 when delivery orchestration is built.
+
+---
+
+### 7. Fingerprint word sets are English-only and pet-centric
+
+**Feature:** R01 | **Source:** Codex R01 review, Observation
+**Files:** src/shared/fingerprint.py (_WARM_WORDS, _HUMOR_MARKERS)
+**Priority:** Low — acceptable for Phase 1 / JimiGPT
+
+Move to config/YAML in Phase 2 for entity-agnostic support (NeuroAmigo).
+
+---
+
 ## Completed Items
 
 | # | Feature | Issue | Resolution | Date |
 |---|---------|-------|-----------|------|
-| | | | | |
+| R01-C1 | R01 | generator overrides routing-selected model | Use provider's model_id; record from LLMResponse | 2026-03-24 |
+| R01-C2 | R01 | _default_provider uses Haiku pricing for Sonnet | Centralized MODEL_COSTS in llm.py | 2026-03-24 |
+| R01-I1 | R01 | Malformed provider strings silently fall back | _parse_provider_string raises InvalidRoutingConfig | 2026-03-24 |
+| R01-I2 | R01 | recipient_id always None in generation logs | log_generation falls back to composition.recipient_id | 2026-03-24 |
+| R01-I3 | R01 | Cross-archetype fingerprint comparison unguarded | compare_fingerprints raises ValueError by default | 2026-03-24 |
+| R01-I4 | R01 | CachedProvider only tested for empty pool | Added non-empty pool + zero-token tests | 2026-03-24 |
+| R01-I5 | R01 | AnthropicProvider empty response untested directly | Added direct provider-level test | 2026-03-24 |
+| R01-I6 | R01 | Alert threshold tests too loose | Added exact boundary tests | 2026-03-24 |

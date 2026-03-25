@@ -177,3 +177,25 @@ class TestAnthropicProvider:
         )
 
         assert result.content == "Hello!"
+
+    @pytest.mark.asyncio
+    async def test_empty_response_raises_generation_error(self) -> None:
+        """Empty content list from Anthropic should raise GenerationError."""
+        from src.shared.llm import GenerationError
+
+        mock_response = MagicMock()
+        mock_response.content = []
+        mock_response.usage.input_tokens = 100
+        mock_response.usage.output_tokens = 0
+        mock_client = AsyncMock()
+        mock_client.messages.create = AsyncMock(return_value=mock_response)
+
+        provider = self._provider()
+        with pytest.raises(GenerationError):
+            await provider.generate(
+                system_prompt="You are Jimi.",
+                user_message="Generate now.",
+                model="claude-haiku-4-5",
+                max_tokens=200,
+                client=mock_client,
+            )
