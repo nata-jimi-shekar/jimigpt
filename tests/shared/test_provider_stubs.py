@@ -106,6 +106,24 @@ class TestCachedProvider:
         )
         assert result.provider == LLMProvider.CACHED
 
+    @pytest.mark.asyncio
+    async def test_non_empty_pool_returns_first_message(self) -> None:
+        provider = self._provider(pool=["Hey there!", "Woof!"])
+        result = await provider.generate(
+            "system", "user", model="cached", max_tokens=200
+        )
+        assert result.content == "Hey there!"
+
+    @pytest.mark.asyncio
+    async def test_zero_tokens_and_zero_cost(self) -> None:
+        provider = self._provider(pool=[])
+        result = await provider.generate(
+            "system", "user", model="cached", max_tokens=200
+        )
+        assert result.input_tokens == 0
+        assert result.output_tokens == 0
+        assert result.cost_usd == 0.0
+
     def test_is_base_provider_subclass(self) -> None:
         from src.shared.llm import BaseProvider
         assert issubclass(CachedProvider, BaseProvider)

@@ -329,3 +329,27 @@ class TestLogGeneration:
             prompt_text=prompt_text,
         )
         assert len(get_log_store()) > 0
+
+    def test_recipient_id_falls_back_to_composition(self) -> None:
+        """When no explicit recipient_id is passed, use composition.recipient_id."""
+        composition, generated, quality, prompt_text = self._make_inputs()
+        composition.recipient_id = "owner-u1"
+        result = log_generation(
+            composition=composition,
+            generated=generated,
+            quality=quality,
+            prompt_text=prompt_text,
+        )
+        assert result.recipient_id == "owner-u1"
+
+    def test_explicit_recipient_id_overrides_composition(self) -> None:
+        composition, generated, quality, prompt_text = self._make_inputs()
+        composition.recipient_id = "owner-u1"
+        result = log_generation(
+            composition=composition,
+            generated=generated,
+            quality=quality,
+            prompt_text=prompt_text,
+            recipient_id="explicit-r1",
+        )
+        assert result.recipient_id == "explicit-r1"

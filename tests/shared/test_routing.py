@@ -5,7 +5,13 @@ from __future__ import annotations
 import pytest
 
 from src.shared.llm import AnthropicProvider
-from src.shared.routing import RoutingConfig, get_provider, load_routing_config
+from src.shared.routing import (
+    InvalidRoutingConfig,
+    RoutingConfig,
+    get_provider,
+    load_routing_config,
+    _parse_provider_string,
+)
 
 
 class TestLoadRoutingConfig:
@@ -76,3 +82,31 @@ class TestGetProvider:
         provider = get_provider("high_stakes")
         assert isinstance(provider, AnthropicProvider)
         assert "sonnet" in provider.model_id
+
+
+# ---------------------------------------------------------------------------
+# Issue #1: Malformed provider strings must be validated
+# ---------------------------------------------------------------------------
+
+
+class TestParseProviderStringValidation:
+    def test_valid_string_parses(self) -> None:
+        provider, model_id = _parse_provider_string("anthropic:claude-haiku-4-5")
+        assert provider == "anthropic"
+        assert model_id == "claude-haiku-4-5"
+
+    def test_missing_colon_raises(self) -> None:
+        with pytest.raises(InvalidRoutingConfig):
+            _parse_provider_string("anthropic")
+
+    def test_empty_model_id_raises(self) -> None:
+        with pytest.raises(InvalidRoutingConfig):
+            _parse_provider_string("anthropic:")
+
+    def test_empty_provider_raises(self) -> None:
+        with pytest.raises(InvalidRoutingConfig):
+            _parse_provider_string(":claude-haiku-4-5")
+
+    def test_empty_string_raises(self) -> None:
+        with pytest.raises(InvalidRoutingConfig):
+            _parse_provider_string("")
