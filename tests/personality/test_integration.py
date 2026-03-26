@@ -147,8 +147,8 @@ def test_assembled_prompt_type(assembled) -> None:
     assert isinstance(assembled, AssembledPrompt)
 
 
-def test_assembled_prompt_has_7_blocks(assembled) -> None:
-    assert assembled.block_count == 7
+def test_assembled_prompt_has_8_blocks(assembled) -> None:
+    assert assembled.block_count == 8
 
 
 def test_assembled_prompt_not_empty(assembled) -> None:

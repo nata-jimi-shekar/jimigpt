@@ -23,6 +23,7 @@ EXPECTED_LAYERS = {
     "emotional",
     "relational",
     "knowledge",
+    "trust_relationship",
     "anti_patterns",
     "message_directive",
 }
@@ -100,12 +101,12 @@ def test_assemble_prompt_system_prompt_not_empty(
     assert result.system_prompt.strip() != ""
 
 
-def test_assemble_prompt_has_7_blocks(
+def test_assemble_prompt_has_8_blocks(
     sample_profile: EntityProfile, sample_context: MessageContext
 ) -> None:
     result = assemble_prompt(sample_profile, sample_context)
-    assert result.block_count == 7
-    assert len(result.blocks) == 7
+    assert result.block_count == 8
+    assert len(result.blocks) == 8
 
 
 def test_assemble_prompt_block_count_matches_blocks_list(
